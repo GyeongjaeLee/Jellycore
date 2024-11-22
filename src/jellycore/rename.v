@@ -21,7 +21,7 @@ module renaming_logic (
     input wire [`PHY_REG_SEL-1:0] phy_src2_2_from_rat,
     input wire [`PHY_REG_SEL-1:0] phy_dst_1_from_free_list,
     input wire [`PHY_REG_SEL-1:0] phy_dst_2_from_free_list,
-    input wire                  WAW_valid,
+    output reg                  WAW_valid,
     output reg [`PHY_REG_SEL-1:0] phy_dst_1,
     output reg [`PHY_REG_SEL-1:0] phy_dst_2,
     output reg [`PHY_REG_SEL-1:0] phy_src1_1,
@@ -49,7 +49,7 @@ module renaming_logic (
 
         // Handle WAW dependency
         if (phy_dst_valid_1 && phy_dst_valid_2 && (dst1 == dst2)) begin
-            phy_dst_2 = phy_dst_2_from_free_list; // Ensure different physical registers
+            WAW_valid = 1'b1;
         end
 
         // Handle RAW dependency (Forwarding for Instruction 2)
