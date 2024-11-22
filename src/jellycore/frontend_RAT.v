@@ -13,6 +13,7 @@ module frontend_RAT (
     input wire [`PHY_REG_SEL-1:0]   phy_dst_2,
     input wire                      phy_dst_valid_1,
     input wire                      phy_dst_valid_2,
+    input wire                      WAW_valid,
     input wire                      prmiss,
     output reg [`PHY_REG_SEL-1:0]   phy_src1_1,
     output reg [`PHY_REG_SEL-1:0]   phy_src2_1,
@@ -28,7 +29,7 @@ module frontend_RAT (
         if (prmiss) begin
             // dealing with branch misprediction
         end else begin
-            if (phy_dst_valid_1)
+            if (phy_dst_valid_1 && ~WAW_valid)
                 frontend_rat[dst1] <= phy_dst_1;
             if (phy_dst_valid_2)
                 frontend_rat[dst2] <= phy_dst_2;
