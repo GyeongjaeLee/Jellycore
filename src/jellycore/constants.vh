@@ -42,6 +42,26 @@
 `define MUL_ENT_SEL 1
 `define MUL_ENT_NUM 2
 
+//Load Queue & Store Queue
+`define LQ_SEL 4
+`define LQ_NUM 16
+`define SQ_SEL 4
+`define SQ_NUM 16
+
+//Port Select
+`define PORT_SEL 2
+`define PORT_NUM 4
+
+`define MAX_LATENCY 5
+
+//Issue Queue
+`define IQ_ENT_SEL 6
+`define IQ_ENT_NUM 64
+
+//Immediate Buffer
+`define IB_ENT_SEL 5
+`define IB_ENT_NUM 32
+
 //STOREBUFFER
 `define STBUF_ENT_SEL 5
 `define STBUF_ENT_NUM 32
@@ -67,11 +87,11 @@
 `define BRDEPTH_LEN 5
 
 //Re-Order Buffer
-`define ROB_SEL 6
+`define ROB_SEL 7
 //`define ROB_NUM 2**`ROB_SEL
-`define ROB_NUM 64
-`define RRF_SEL `ROB_SEL
-`define RRF_NUM `ROB_NUM
+`define ROB_NUM 128
+// `define RRF_SEL `ROB_SEL
+// `define RRF_NUM `ROB_NUM
 
 //src_a
 `define SRC_A_SEL_WIDTH 2
