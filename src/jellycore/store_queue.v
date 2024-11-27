@@ -62,25 +62,18 @@ module store_queue (
                 sq[update_rob_idx].address_ready <= 1;
             end
 
-            // Issue Logic: Find the next ready instruction
-            if (!sq_empty) begin
-                for (int i = head; i != tail; i = (i + 1) % `SQ_SIZE) begin
-                    if (sq[i].valid && sq[i].address_ready) begin
-                        store_address <= sq[i].address;
-                        store_value <= sq[i].data;
-                        store_ready <= 1;
-                        break;
-                    end
-                end
-            end
 
+            /*
             // Commit Logic
             if (commit_enable && !sq_empty && sq[head].valid && sq[head].address_ready) begin
                 sq[head].valid <= 0;
                 head <= (head + 1) % `SQ_SIZE;
                 count <= count - 1;
             end
+            */
 
+
+            
             // Update Status
             sq_full <= (count == `SQ_SIZE);
             sq_empty <= (count == 0);

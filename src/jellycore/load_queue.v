@@ -59,25 +59,18 @@ module load_queue (
                 lq[update_rob_idx].address_ready <= 1;
             end
 
-            // Issue Logic: Find the next ready instruction
-            if (!lq_empty) begin
-                for (int i = head; i != tail; i = (i + 1) % `LQ_SIZE) begin
-                    if (lq[i].valid && lq[i].address_ready) begin
-                        load_address <= lq[i].address;
-                        load_rob_idx <= lq[i].rob_idx;
-                        load_ready <= 1;
-                        break;
-                    end
-                end
-            end
 
+            /*
             // Commit Logic
             if (commit_enable && !lq_empty && lq[head].valid && lq[head].address_ready) begin
                 lq[head].valid <= 0;
                 head <= (head + 1) % `LQ_SIZE;
                 count <= count - 1;
             end
+            */
 
+
+            
             // Update Status
             lq_full <= (count == `LQ_SIZE);
             lq_empty <= (count == 0);

@@ -59,6 +59,7 @@
 `define GSH_PHT_NUM 1024
 //`define GSH_PHT_NUM 2**`GSH_PHT_SEL
 
+
 //TagGenerator
 
 //`define SPECTAG_LEN 1+`BRANCH_ENT_NUM
@@ -110,3 +111,16 @@
 `define MD_OUT_HI  `MD_OUT_SEL_WIDTH'd1
 `define MD_OUT_REM `MD_OUT_SEL_WIDTH'd2
 
+// Load queue
+`define LQ_SIZE = 16,           // Load Queue Size
+`define ADDR_WIDTH = 32     // Memory Address Width
+`define DATA_WIDTH = 32        // Data Width
+`define IMM_WIDTH 12      // Immediate (Offset) Width
+// Store queue
+`define SQ_SIZE = 16          // Load Queue Size
+
+//Reorder Buffer
+`define ROB_SIZE = 64
+`define ROB_SEL = 6
+`define ROB_IDX_SEL = 10
+'define ROB_IDX_SIZE = 1024
