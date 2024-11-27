@@ -42,6 +42,10 @@ module issue_queue(
     input wire [`IB_ENT_SEL-1:0]    imm_ptr_1,
     input wire [`IB_ENT_SEL-1:0]    imm_ptr_2,
     input wire                      stall_DP,
+    input wire [`LQ_SEL-1:0]        lq_idx_1,
+    input wire [`LQ_SEL-1:0]        lq_idx_2,
+    input wire [`SQ_SEL-1:0]        sq_idx_1,
+    input wire [`SQ_SEL-1:0]        sq_idx_2,
     // misprediction triggers rob_num comparison to flush instructions in the wrong path
     input wire [`ROB_SEL-1:0]       rob_num_1,
     input wire [`ROB_SEL-1:0]       rob_num_2,
@@ -82,58 +86,103 @@ module issue_queue(
     reg [`SQ_SEL-1:0]           sq_idx      [`IQ_ENT_NUM-1:0];
     reg [`RS_ENT_SEL-1:0]       inst_type   [`IQ_ENT_NUM-1:0];
     reg [`IB_ENT_SEL-1:0]       imm_ptr     [`IQ_ENT_NUM-1:0];
-    
+
+    wire                    match1_result   [`IQ_ENT_NUM-1:0];
+    wire                    match2_result   [`IQ_ENT_NUM-1:0];
+    wire                    request         [`IQ_ENT_NUM-1:0];
+    // at most 2 instruction can be selected
+    wire [`PHY_REG_SEL-1:0] broadcast_tag1;
+    wire [`PHY_REG_SEL-1:0] broadcast_tag2;
+
+    reg [`IQ_ENT_SEL:0]     j;
+    reg [`IQ_ENT_SEL:0]     k;
+
     // each entry forms its own always block
     genvar i;
     generate
         for (i = 0; i < `IQ_ENT_NUM; i = i + 1) begin
-            always @ (posedge clk) begin
-                if (reset) begin
-                    valid[i] <= 0;
-                    match1[i] <= 0;
-                    match2[i] <= 0;
-                    shift_r1[i] <= 0;
-                    shift_r2[i] <= 0;
-                    delay1[i] <= 0;
-                    delay2[i] <= 0;
-                end else if (prmiss) begin
-                    // prmiss
-                end else begin
-                    // allocation
-                    if(~stall_DP) begin
-                        if (i == iq_entry_num_1 && ~invalid1) begin
-                            valid[i] <= 1;
-                            src1[i] <= src1_1;
-                            src2[i] <= src2_1;
-                            match1[i] <= match1_1;
-                            match2[i] <= match2_1;
-                            shift_r1[i] <= shift_r1_1;
-                            shift_r2[i] <= shift_r2_1;
-                            delay1[i] <= delay1_1;
-                            delay2[i] <= delay2_1;
-                            dst[i] <= dst_1;
-                            port_num[i] <= port_num_1;
-                        end
-                        if (i == iq_entry_num_2 && ~invalid2) begin
-                            valid[i] <= 1;
-                            src1[i] <= src1_2;
-                            src2[i] <= src2_2;
-                            match1[i] <= match1_2;
-                            match2[i] <= match2_2;
-                            shift_r1[i] <= shift_r1_2;
-                            shift_r2[i] <= shift_r2_2;
-                            delay1[i] <= delay1_2;
-                            delay2[i] <= delay2_2;
-                            dst[i] <= dst_2;
-                            port_num[i] <= port_num_2;
-                        end
-                    end
+            // wakeup logic CAM search
+            assign match1_result[i] = valid[i]
+                && ((src1[i] == broadcast_tag1) || (src1[i] == broadcast_tag2));
+            assign match2_result[i] = valid[i]
+                && ((src2[i] == broadcast_tag1) || (src2[i] == broadcast_tag2));
+            assign request[i] = shift_r1[i][0] && shift_r2[i][0];
+            // select logic
 
-                    //wakeup
-                end
-            end
         end
     endgenerate
+
+    always @ (posedge clk)  begin
+        if (reset) begin
+            for (j = 0; j < `IQ_ENT_NUM; j++) begin
+                valid[j] <= 0;
+            end
+        end else if (prmiss) begin
+            // branch misprediction
+        end else begin
+            if (~stall_DP) begin
+                // allocate wakeup logic entry and payload RAM
+                if (~invalid1) begin
+                    valid[iq_entry_num_1] <= 1;
+                    src1[iq_entry_num_1] <= src1_1;
+                    src2[iq_entry_num_1] <= src2_1;
+                    match1[iq_entry_num_1] <= match1_1;
+                    match2[iq_entry_num_1] <= match2_1;
+                    shift_r1[iq_entry_num_1] <= shift_r1_1;
+                    shift_r2[iq_entry_num_1] <= shift_r2_1;
+                    delay1[iq_entry_num_1] <= delay1_1;
+                    delay2[iq_entry_num_1] <= delay2_1;
+                    dst[iq_entry_num_1] <= dst_1;
+                    port_num[iq_entry_num_1] <= port_num_1;
+                    alu_op[iq_entry_num_1] <= alu_op_1;
+                    rob_num[iq_entry_num_1] <= rob_num_1;
+                    lq_idx[iq_entry_num_1] <= lq_idx_1;
+                    sq_idx[iq_entry_num_1] <= sq_idx_1;
+                    inst_type[iq_entry_num_1] <= inst_type_1;
+                    imm_ptr[iq_entry_num_1] <= imm_ptr_1;
+                end
+                if (~invalid2) begin
+                    valid[iq_entry_num_2] <= 1;
+                    src1[iq_entry_num_2] <= src1_1;
+                    src2[iq_entry_num_2] <= src2_1;
+                    match1[iq_entry_num_2] <= match1_1;
+                    match2[iq_entry_num_2] <= match2_1;
+                    shift_r1[iq_entry_num_2] <= shift_r1_1;
+                    shift_r2[iq_entry_num_2] <= shift_r2_1;
+                    delay1[iq_entry_num_2] <= delay1_1;
+                    delay2[iq_entry_num_2] <= delay2_1;
+                    dst[iq_entry_num_2] <= dst_1;
+                    port_num[iq_entry_num_2] <= port_num_1;
+                    alu_op[iq_entry_num_2] <= alu_op_2;
+                    rob_num[iq_entry_num_2] <= rob_num_2;
+                    lq_idx[iq_entry_num_2] <= lq_idx_2;
+                    sq_idx[iq_entry_num_2] <= sq_idx_2;
+                    inst_type[iq_entry_num_2] <= inst_type_2;
+                    imm_ptr[iq_entry_num_2] <= imm_ptr_2;
+                end
+            end
+            // match bit set if src tags match with broadcasted dst tag through CAM search
+            // if set, do arithmetic right shift shift_r, eventually set R bit
+            for (j = 0; j < `IQ_ENT_NUM; j++) begin
+                if (match1_result[j]) begin
+                    match1[j] <= 1;
+                    shift_r1[j] <= delay1[j];
+                end
+                if (match2_result[j]) begin
+                    match2[j] <= 1;
+                    shift_r2[j] <= delay2[j];
+                end
+                if (match1[j]) begin
+                    shift_r1[j] <= shift_r1[j] >>> 1;
+                end
+                if (match2[j]) begin
+                    shift_r2[j] <= shift_r2[j] >>> 1;
+                end
+            end
+
+        end
+    
+    end
 
     
 endmodule

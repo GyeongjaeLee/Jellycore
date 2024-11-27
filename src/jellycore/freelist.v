@@ -4,7 +4,7 @@
 // this freelist can be used as both a physical register tag freelist and an issue queue freelist
 module freelist #(
                 parameter FREE_NUM = 64,
-                parameter FREE_SEL = 64
+                parameter FREE_SEL = 6
                 )   
         (
         input wire          clk,
