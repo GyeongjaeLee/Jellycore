@@ -10,7 +10,7 @@ module load_queue (
     input wire [`ROB_SEL-1:0] rob_idx,    // ROB Index
     input wire address_ready,             // Address calculation completed
     input wire [`ADDR_WIDTH-1:0] calculated_address, // Calculated address
-    input wire [$clog2(`LQ_SIZE)-1:0] update_rob_idx,    // Index of the Load Queue entry to update
+    input wire [LQ_SEL-1:0] update_rob_idx,    // Index of the Load Queue entry to update
     input wire commit_enable,             // Commit Load instruction
     output reg lq_full,                   // Load Queue Full
     output reg lq_empty,                  // Load Queue Empty
@@ -29,9 +29,9 @@ module load_queue (
         reg address_ready;
     } lq_entry;
 
-    lq_entry lq[`LQ_SIZE-1:0];
-    reg [$clog2(`LQ_SIZE)-1:0] head, tail;
-    reg [$clog2(`LQ_SIZE):0] count;
+    lq_entry lq[`LQ_NUM-1:0];
+    reg [LQ_SEL-1:0] head, tail;
+    reg [LQ_SEL:0] count;
 
     always @(posedge clk or posedge reset) begin
         if (reset) begin
@@ -49,7 +49,7 @@ module load_queue (
                 lq[tail].offset <= offset;
                 lq[tail].rob_idx <= rob_idx;
                 lq[tail].address_ready <= 0;
-                tail <= (tail + 1) % `LQ_SIZE;
+                tail <= (tail + 1) % `LQ_NUM;
                 count <= count + 1;
             end
 
@@ -64,7 +64,7 @@ module load_queue (
             // Commit Logic
             if (commit_enable && !lq_empty && lq[head].valid && lq[head].address_ready) begin
                 lq[head].valid <= 0;
-                head <= (head + 1) % `LQ_SIZE;
+                head <= (head + 1) % `LQ_NUM;
                 count <= count - 1;
             end
             */
@@ -72,7 +72,7 @@ module load_queue (
 
             
             // Update Status
-            lq_full <= (count == `LQ_SIZE);
+            lq_full <= (count == `LQ_NUM);
             lq_empty <= (count == 0);
         end
     end

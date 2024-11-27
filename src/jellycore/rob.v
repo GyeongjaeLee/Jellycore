@@ -13,9 +13,9 @@ module reorder_buffer (
     output reg [`ROB_SEL-1:0] commit_rob_idx // Committed ROB Index
 );
 
-    reg valid[`ROB_SIZE-1:0];
-    reg [$clog2(`ROB_SIZE)-1:0] head, tail;
-    reg [$clog2(`ROB_SIZE):0] count;
+    reg valid[`ROB_NUM-1:0];
+    reg [$clog2(`ROB_NUM)-1:0] head, tail;
+    reg [$clog2(`ROB_NUM):0] count;
 
     always @(posedge clk or posedge reset) begin
         if (reset) begin
@@ -29,7 +29,7 @@ module reorder_buffer (
             if (dispatch_valid && !rob_full) begin
                 valid[tail] <= 1;
                 rob_idx[tail] <= rob_idx;
-                tail <= (tail + 1) % `ROB_SIZE;
+                tail <= (tail + 1) % `ROB_NUM;
                 count <= count + 1;
             end
 
@@ -38,7 +38,7 @@ module reorder_buffer (
             if (commit_enable && !rob_empty && valid[head]) begin
                 commit_rob_idx <= head;
                 valid[head] <= 0;
-                head <= (head + 1) % `ROB_SIZE;
+                head <= (head + 1) % `ROB_NUM;
                 count <= count - 1;
             end
             */
@@ -49,7 +49,7 @@ module reorder_buffer (
             end
 
             // Update Status
-            rob_full <= (count == `ROB_SIZE);
+            rob_full <= (count == `ROB_NUM);
             rob_empty <= (count == 0);
         end
     end
