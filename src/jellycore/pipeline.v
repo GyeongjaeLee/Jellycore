@@ -22,6 +22,37 @@ module pipeline
    wire  stall_DP;
    wire  kill_DP;
 
+/////RENAMING Logic Wires(rename.v, frontend_RAT.v, freelist.v)/////    
+       // Signals for freelist
+    wire [`PHY_REG_SEL-1:0] phy_dst_1_from_freelist;
+    wire [`PHY_REG_SEL-1:0] phy_dst_2_from_freelist;
+    wire phy_dst_valid_1;
+    wire phy_dst_valid_2;
+    wire allocatable;
+
+    // Signals for frontend_RAT
+    wire [`PHY_REG_SEL-1:0] phy_src1_1_from_rat;
+    wire [`PHY_REG_SEL-1:0] phy_src2_1_from_rat;
+    wire [`PHY_REG_SEL-1:0] phy_src1_2_from_rat;
+    wire [`PHY_REG_SEL-1:0] phy_src2_2_from_rat;
+
+    // Signals for renaming_logic
+    wire [`PHY_REG_SEL-1:0] phy_dst_1_from_renaming;
+    wire [`PHY_REG_SEL-1:0] phy_dst_2_from_renaming;
+
+    // WAW and RAW dependency handling
+    wire WAW_valid;
+
+    // Temporary architectural register and control signals
+    wire [`REG_SEL-1:0] rs1_1, rs2_1, dst1;
+    wire [`REG_SEL-1:0] rs1_2, rs2_2, dst2;
+    wire uses_rs1_1, uses_rs2_1, uses_rs1_2, uses_rs2_2;
+    wire wr_reg1, wr_reg2;
+/////RENAMING Logic Wires(rename.v, frontend_RAT.v, freelist.v)/////    
+
+
+
+
    //IF
    // Signal from pipe_if
    wire     	       prcond;
@@ -299,6 +330,84 @@ module pipeline
 		.md_req_out_sel(md_req_out_sel_2)
 		);
 
+
+
+
+///////////Renaming Logic Instances//////////
+    // Instantiate the FreeList module
+    freelist freelist_inst (
+        .clk(clk),
+        .reset(reset),
+        .invalid1(1'b0),                 // Replace with actual invalid signal
+        .invalid2(1'b0),                 // Replace with actual invalid signal
+        .wr_reg_1(wr_reg1),
+        .wr_reg_2(wr_reg2),
+        .prmiss(1'b0),                   // Replace with branch misprediction signal if needed
+        .released_tag1(6'd0),            // Replace with actual release tag
+        .released_tag2(6'd0),            // Replace with actual release tag
+        .released_tag1_valid(1'b0),      // Replace with actual release validity signal
+        .released_tag2_valid(1'b0),      // Replace with actual release validity signal
+        .stall_DP(1'b0),                 // Replace with actual back-end stall signal
+        .phy_dst_1(phy_dst_1_from_freelist),
+        .phy_dst_2(phy_dst_2_from_freelist),
+        .phy_dst_valid_1(phy_dst_valid_1),
+        .phy_dst_valid_2(phy_dst_valid_2),
+        .allocatable(allocatable)
+    );
+
+    // Instantiate the frontend_RAT module
+    frontend_RAT frontend_RAT_inst (
+        .clk(clk),
+        .rs1_1(rs1_1),
+        .rs2_1(rs2_1),
+        .rs1_2(rs1_2),
+        .rs2_2(rs2_2),
+        .dst1(dst1),
+        .dst2(dst2),
+        .phy_dst_1(phy_dst_1_from_freelist),
+        .phy_dst_2(phy_dst_2_from_freelist),
+        .phy_dst_valid_1(phy_dst_valid_1),
+        .phy_dst_valid_2(phy_dst_valid_2),
+        .WAW_valid(WAW_valid),
+        .prmiss(1'b0),                   // Replace with branch misprediction signal if needed
+        .phy_src1_1(phy_src1_1_from_rat),
+        .phy_src2_1(phy_src2_1_from_rat),
+        .phy_src1_2(phy_src1_2_from_rat),
+        .phy_src2_2(phy_src2_2_from_rat),
+        .phy_ori_dst_1(),                // Connect if needed!!!!!
+        .phy_ori_dst_2()                 // Connect if needed!!!!! Later
+    );
+    // Instantiate the renaming_logic module
+    renaming_logic renaming_logic_inst (
+        .clk(clk),
+        .reset(reset),
+        .rs1_1(rs1_1),
+        .rs2_1(rs2_1),
+        .dst1(dst1),
+        .uses_rs1_1(uses_rs1_1),
+        .uses_rs2_1(uses_rs2_1),
+        .rs1_2(rs1_2),
+        .rs2_2(rs2_2),
+        .dst2(dst2),
+        .uses_rs1_2(uses_rs1_2),
+        .uses_rs2_2(uses_rs2_2),
+        .phy_dst_valid_1(phy_dst_valid_1),
+        .phy_dst_valid_2(phy_dst_valid_2),
+        .phy_src1_1_from_rat(phy_src1_1_from_rat),
+        .phy_src2_1_from_rat(phy_src2_1_from_rat),
+        .phy_src1_2_from_rat(phy_src1_2_from_rat),
+        .phy_src2_2_from_rat(phy_src2_2_from_rat),
+        .phy_dst_1_from_free_list(phy_dst_1_from_freelist),
+        .phy_dst_2_from_free_list(phy_dst_2_from_freelist),
+        .WAW_valid(WAW_valid),
+        .phy_dst_1(), 						// Connect to later pipeline stages
+        .phy_dst_2(), 						// Connect to later pipeline stages
+        .phy_src1_1(),                   // Connect to later pipeline stages
+        .phy_src2_1(),                   // Connect to later pipeline stages
+        .phy_src1_2(),                   // Connect to later pipeline stages
+        .phy_src2_2()                    // Connect to later pipeline stages
+    );
+///////////Renaming Logic Instances//////////
     always @ (posedge clk) begin
       if (reset | kill_ID) begin
 	 imm_type_1_id <= 0;
