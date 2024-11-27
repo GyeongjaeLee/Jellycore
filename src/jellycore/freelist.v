@@ -1,84 +1,85 @@
 `include "constants.vh"
 `default_nettype none
 // recovery is not implemented yet
-module freelist(
+// this freelist can be used as both a physical register tag freelist and an issue queue freelist
+module freelist #(
+                parameter FREE_NUM = 64,
+                parameter FREE_SEL = 6
+                )   
+        (
         input wire          clk,
         input wire          reset,
         input wire          invalid1,
         input wire          invalid2,
-        input wire          wr_reg_1,
-        input wire          wr_reg_2,
         input wire          prmiss,
-        input wire [`PHY_REG_SEL-1:0]   released_tag1,
-        input wire [`PHY_REG_SEL-1:0]   released_tag2,
-        input wire                      released_tag1_valid,
-        input wire                      released_tag2_valid,
-        input wire          stall_DP,   // if back-end stalls
-        output reg [`PHY_REG_SEL-1:0]   phy_dst_1,
-        output reg [`PHY_REG_SEL-1:0]   phy_dst_2,
-        output reg                      phy_dst_valid_1,
-        output reg                      phy_dst_valid_2,
-        output wire                     allocatable
+        input wire [FREE_SEL-1:0]  released_1,
+        input wire [FREE_SEL-1:0]  released_2,
+        input wire                  releaesd_valid_1,
+        input wire                  released_valid_2,
+        input wire                  stall_DP,   // if back-end stalls
+        output reg [FREE_SEL-1:0]   alloc_1,
+        output reg [FREE_SEL-1:0]   alloc_2,
+        output reg                  alloc_valid_1,
+        output reg                  alloc_valid_2,
+        output reg                  allocatable
         );
 
     // bit vectors indicates whether physcial register tag is free
-    reg [`PHY_REG_NUM-1:0]  free_bits;
-    reg [`PHY_REG_SEL:0]    freenum;
+    reg [FREE_NUM-1:0]     free_bits;
+    reg [FREE_SEL:0]       freenum;
     reg                     alloc_prev;
     reg [1:0]               count;
-    reg [`PHY_REG_SEL:0]    i;
-    wire [1:0]              reqnum;
-    wire [1:0]              comnum;
-    wire [1:0]              allocnum;
+    reg [FREE_SEL:0]       i;
+    reg [1:0]               reqnum;
+    reg [1:0]               relnum;
+    reg [1:0]               allocnum;
 
-    assign reqnum = {1'b0, ~invalid1 & wr_reg_1} + {1'b0, ~invalid2 & wr_reg_2};
-    assign comnum = {1'b0, released_tag1_valid} + {1'b0, released_tag2_valid};
-    assign allocatable = (freenum >= reqnum) ? 1'b1 : 1'b0;
-
-    // No stall_DP -> alloc tags
-    // stall_DP but alloc failed in previous cycle-> alloc tags
-    // stall_DP and alloc succeeded in previous cycle -> same tags
+    // No stall_DP -> allocate
+    // stall_DP but alloc failed in previous cycle-> allocate
+    // stall_DP and alloc succeeded in previous cycle -> keep prev allocation info
     always @ (*) begin
+        reqnum = {1'b0, ~invalid1} + {1'b0, ~invalid2};
+        relnum = {1'b0, releaesd_valid_1} + {1'b0, released_valid_2};
+        allocatable = (freenum >= reqnum) ? 1'b1 : 1'b0;
         if (allocatable && (~stall_DP || (stall_DP && ~alloc_prev))) begin
-            phy_dst_valid_1 = 0;
-            phy_dst_valid_2 = 0;
+            alloc_valid_1 = 0;
+            alloc_valid_2 = 0;
             count = 0;
-            for (i = 0; i < `PHY_REG_NUM && count < reqnum; i++) begin
+            for (i = 0; i < FREE_NUM && count < reqnum; i++) begin
                 if (free_bits[i]) begin
-                    if (count == 0 && wr_reg_1) begin
-                        phy_dst_1 = i;
-                        phy_dst_valid_1 = 1;
+                    if (count == 0 && ~invalid1) begin
+                        alloc_1 = i;
+                        alloc_valid_1 = 1;
                     end else begin
-                        phy_dst_2 = i;
-                        phy_dst_valid_2 = 1;
+                        alloc_2 = i;
+                        alloc_valid_2 = 1;
                     end
                     count = count + 1;
                 end
             end
         end else begin
-            phy_dst_1 = phy_dst_1;
-            phy_dst_2 = phy_dst_2;
-            phy_dst_valid_1 = phy_dst_valid_1;
-            phy_dst_valid_2 = phy_dst_valid_2;
+            alloc_1 = alloc_1;
+            alloc_2 = alloc_2;
+            alloc_valid_1 = alloc_valid_1;
+            alloc_valid_2 = alloc_valid_2;
         end
+        allocnum = (allocatable && (~stall_DP || (stall_DP && ~alloc_prev))) ? count : 2'b00;
     end
-
-    assign allocnum = (allocatable && (~stall_DP || (stall_DP && ~alloc_prev))) ? count : 2'b00;
 
     always @ (negedge clk) begin
         if(reset) begin
-            freenum <= `PHY_REG_NUM;
-            free_bits <= {`PHY_REG_NUM{1'b1}};
+            freenum <= FREE_NUM;
+            free_bits <= {FREE_NUM{1'b1}};
             alloc_prev <= 1'b1;
         end else if (prmiss) begin
             // dealing with branch misprediction
         end else begin
-            freenum <= freenum + comnum - allocnum;
+            freenum <= freenum + relnum - allocnum;
             free_bits <= (free_bits
-                         | ({`PHY_REG_NUM{released_tag1_valid}} & (1'b1 << released_tag1))
-                         | ({`PHY_REG_NUM{released_tag2_valid}} & (1'b1 << released_tag2))
-                         & ~({`PHY_REG_NUM{phy_dst_valid_1}} & (1'b1 << phy_dst_1))
-                         & ~({`PHY_REG_NUM{phy_dst_valid_2}} & (1'b1 << phy_dst_2)));
+                         | ({FREE_NUM{releaesd_valid_1}} & (1'b1 << released_1))
+                         | ({FREE_NUM{released_valid_2}} & (1'b1 << released_2))
+                         & ~({FREE_NUM{alloc_valid_1}} & (1'b1 << alloc_1))
+                         & ~({FREE_NUM{alloc_valid_2}} & (1'b1 << alloc_2)));
             alloc_prev <= allocatable;
         end
     end
