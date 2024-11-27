@@ -129,4 +129,3 @@
 `define MD_OUT_LO  `MD_OUT_SEL_WIDTH'd0
 `define MD_OUT_HI  `MD_OUT_SEL_WIDTH'd1
 `define MD_OUT_REM `MD_OUT_SEL_WIDTH'd2
-
