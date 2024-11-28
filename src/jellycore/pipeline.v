@@ -703,7 +703,6 @@ module pipeline (
     .allocatable(allocatable_iq)
     );
 
-    // 
     freelist #(`IB_ENT_NUM, `IB_ENT_SEL)
     ib_freelist (
     .clk(clk),
@@ -733,8 +732,8 @@ module pipeline (
     .invalid2(ib_free_valid_2),
     .ptr_1(ib_free_ent_1),
     .ptr_2(ib_free_ent_2),
-    .value_1(imm_value_1),
-    .value_2(imm_value_2),
+    .value_1(imm_1_rn),
+    .value_2(imm_2_rn),
     .prmiss(prmiss),
     .issued_1(),        // if selected instruction is immediate?
     .issued_2(),
@@ -763,6 +762,7 @@ module pipeline (
     .allocatable(allocatable_pb)
     );
 
+    // store pc value
     value_buffer #(`PB_ENT_NUM, `PB_ENT_SEL, `ADDR_LEN)
     pc_buffer (
     .clk(clk),
@@ -771,8 +771,8 @@ module pipeline (
     .invalid2(pb_free_valid_2),
     .ptr_1(pb_free_ent_1),
     .ptr_2(pb_free_ent_2),
-    .value_1(pc_value_1),
-    .value_2(pc_value_2),
+    .value_1(pc_rn),
+    .value_2(pc_rn+4),
     .prmiss(prmiss),
     .issued_1(),        // if selected instruction is immediate?
     .issued_2(),
