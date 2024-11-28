@@ -62,6 +62,10 @@
 `define IB_ENT_SEL 5
 `define IB_ENT_NUM 32
 
+//PC Buffer
+`define PB_ENT_SEL 4
+`define PB_ENT_NUM 16
+
 //STOREBUFFER
 `define STBUF_ENT_SEL 5
 `define STBUF_ENT_NUM 32

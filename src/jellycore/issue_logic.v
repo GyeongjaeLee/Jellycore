@@ -17,6 +17,10 @@ module issue_queue(
     input wire                      uses_rs2_1,
     input wire                      uses_rs1_2,
     input wire                      uses_rs2_2,
+    input wire [`SRC_A_SEL_WIDTH-1:0]  src_a_sel_1,
+    input wire [`SRC_B_SEL_WIDTH-1:0]  src_b_sel_1,
+    input wire [`SRC_A_SEL_WIDTH-1:0]  src_a_sel_2,
+    input wire [`SRC_B_SEL_WIDTH-1:0]  src_b_sel_2,
     input wire [`RS_ENT_SEL-1:0]    inst_type_1,
     input wire [`RS_ENT_SEL-1:0]    inst_type_2,
     input wire                      alu_op_1,
@@ -41,6 +45,8 @@ module issue_queue(
     input wire [`PHY_REG_SEL-1:0]   dst_2,
     input wire [`IB_ENT_SEL-1:0]    imm_ptr_1,
     input wire [`IB_ENT_SEL-1:0]    imm_ptr_2,
+    input wire [`PB_ENT_SEL-1:0]    pc_ptr_1,
+    input wire [`PB_ENT_SEL-1:0]    pc_ptr_2,
     input wire                      stall_DP,
     input wire [`LQ_SEL-1:0]        lq_idx_1,
     input wire [`LQ_SEL-1:0]        lq_idx_2,
@@ -86,6 +92,9 @@ module issue_queue(
     reg [`SQ_SEL-1:0]           sq_idx      [`IQ_ENT_NUM-1:0];
     reg [`RS_ENT_SEL-1:0]       inst_type   [`IQ_ENT_NUM-1:0];
     reg [`IB_ENT_SEL-1:0]       imm_ptr     [`IQ_ENT_NUM-1:0];
+    reg [`PB_ENT_SEL-1:0]       pc_ptr      [`IQ_ENT_NUM-1:0];
+    reg [`SRC_A_SEL_WIDTH-1:0]  src_a_sel   [`IQ_ENT_NUM-1:0];
+    reg [`SRC_B_SEL_WIDTH-1:0]  src_b_sel   [`IQ_ENT_NUM-1:0];
 
     wire                    match1_result   [`IQ_ENT_NUM-1:0];
     wire                    match2_result   [`IQ_ENT_NUM-1:0];
@@ -140,6 +149,9 @@ module issue_queue(
                     sq_idx[iq_entry_num_1] <= sq_idx_1;
                     inst_type[iq_entry_num_1] <= inst_type_1;
                     imm_ptr[iq_entry_num_1] <= imm_ptr_1;
+                    pc_ptr[iq_entry_num_1] <= pc_ptr_1;
+                    src_a_sel[iq_entry_num_1] <= src_a_sel_1;
+                    src_b_sel[iq_entry_num_1] <= src_b_sel_1;
                 end
                 if (~invalid2) begin
                     valid[iq_entry_num_2] <= 1;
@@ -159,6 +171,9 @@ module issue_queue(
                     sq_idx[iq_entry_num_2] <= sq_idx_2;
                     inst_type[iq_entry_num_2] <= inst_type_2;
                     imm_ptr[iq_entry_num_2] <= imm_ptr_2;
+                    pc_ptr[iq_entry_num_2] <= pc_ptr_2;
+                    src_a_sel[iq_entry_num_2] <= src_a_sel_2;
+                    src_b_sel[iq_entry_num_2] <= src_b_sel_2;
                 end
             end
             // match bit set if src tags match with broadcasted dst tag through CAM search
