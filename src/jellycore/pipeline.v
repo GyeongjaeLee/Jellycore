@@ -217,6 +217,11 @@ module pipeline (
 	wire 					iq_free_valid_1;
 	wire 					iq_free_valid_2;
 
+    wire [`IB_ENT_SEL-1:0]  ib_free_ent_1;
+    wire [`IB_ENT_SEL-1:0]  ib_free_ent_2;
+    wire 					ib_free_valid_1;
+	wire 					ib_free_valid_2;
+
 	wire					allocatable_iq;
 	wire					allocatable_ib;
 	wire					allocatable_rob;
@@ -228,6 +233,12 @@ module pipeline (
 	wire [`IQ_ENT_SEL-1:0]	issued_2;
 	wire					issued_valid_1;
 	wire					issued_valid_2;
+    wire [`IB_ENT_SEL-1:0]	issued_imm_1;
+	wire [`IB_ENT_SEL-1:0]	issued_imm_2;
+	wire					issued_imm_valid_1;
+	wire					issued_imm_valid_2;
+    wire [`DATA_LEN-1:0]    issued_imm_value_1;
+    wire [`DATA_LEN-1:0]    issued_imm_value_2;
 
 
     // IF Stage********************************************************
@@ -612,22 +623,61 @@ module pipeline (
 	// Dispatch Instatnces
 	freelist #(`IQ_ENT_NUM, `IQ_ENT_SEL)
 	iq_freelist (
-		.clk(clk),
-		.reset(reset),
-		.invalid1(inv1_rn),
-		.invalid2(inv2_rn),
-		.prmiss(prmiss),
-		.released_1(issued_1),
-		.released_2(issued_2),
-		.released_valid_1(issued_valid_1),
-		.released_valid_2(issued_valid_2),
-		.stall_DP(stall_DP),
-		.alloc_1(iq_free_ent_1),
-		.alloc_2(iq_free_ent_2),
-		.alloc_valid_1(iq_free_valid_1),
-		.alloc_valid_2(iq_free_valid_2),
-		.allocatable(allocatable_iq)
-		);
+    .clk(clk),
+    .reset(reset),
+    .invalid1(inv1_rn),
+    .invalid2(inv2_rn),
+    .prmiss(prmiss),
+    .released_1(issued_1),
+    .released_2(issued_2),
+    .released_valid_1(issued_valid_1),
+    .released_valid_2(issued_valid_2),
+    .stall_DP(stall_DP),
+    .alloc_1(iq_free_ent_1),
+    .alloc_2(iq_free_ent_2),
+    .alloc_valid_1(iq_free_valid_1),
+    .alloc_valid_2(iq_free_valid_2),
+    .allocatable(allocatable_iq)
+    );
+
+    // please add imm_gen here
+
+    freelist #(`IB_ENT_NUM, `IB_ENT_SEL)
+    ib_freelist (
+    .clk(clk),
+    .reset(reset),
+    .invalid1(),     // valid only when instruction uses immediate for execution
+    .invalid2(),     // 
+    .prmiss(prmiss),
+    .released_1(issued_imm_1),
+    .released_2(issued_imm_2),
+    .released_valid_1(issued_imm_valid_1),
+    .released_valid_2(issued_imm_valid_2),
+    .stall_DP(stall_DP),
+    .alloc_1(ib_free_ent_1),
+    .alloc_2(ib_free_ent_2),
+    .alloc_valid_1(ib_free_valid_1),
+    .alloc_valid_2(ib_free_valid_2),
+    .allocatable(allocatable_ib)
+    );
+
+    immediate_buffer imm_buffer (
+    .clk(clk),
+    .reset(reset),
+    .invalid1(ib_free_valid_1),
+    .invalid2(ib_free_valid_2),
+    .imm_ptr_1(ib_free_ent_1),
+    .imm_ptr_2(ib_free_ent_2),
+    .imm_value_1(imm_value_1),
+    .imm_value_2(imm_value_2),
+    .prmiss(prmiss),
+    .issued_1(),        // signals from select logic
+    .issued_2(),
+    .issued_imm_ptr_1(issued_imm_1),    // imm ptr from select logic
+    .issued_imm_ptr_2(issued_imm_2),
+    .issued_imm_value_1(issued_imm_value_1),
+    .issued_imm_value_1(issued_imm_value_1)
+    );
 
 
 endmodule
