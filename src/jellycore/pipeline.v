@@ -174,9 +174,15 @@ module pipeline (
 	wire 					com_valid_1;
 	wire 					com_valid_2;
 
+    // signals from immediate generator
+    wire [`DATA_LEN-1:0]    imm_1;
+    wire [`DATA_LEN-1:0]    imm_2;
+    wire [`DATA_LEN-1:0]    brimm_1;
+    wire [`DATA_LEN-1:0]    brimm_2;
+
+
 	// Latch
 	// Decode Info1
-    reg [`IMM_TYPE_WIDTH-1:0] 	imm_type_1_rn;
     reg [`SRC_A_SEL_WIDTH-1:0] 	src_a_sel_1_rn;
     reg [`SRC_B_SEL_WIDTH-1:0] 	src_b_sel_1_rn;
     reg 				wr_reg_1_rn;
@@ -188,7 +194,6 @@ module pipeline (
     reg 				md_req_in_2_signed_1_rn;
 	reg [`MD_OUT_SEL_WIDTH-1:0] 	md_req_out_sel_1_rn;
 	// Decode Info2
-    reg [`IMM_TYPE_WIDTH-1:0] 	imm_type_2_rn;
     reg [`SRC_A_SEL_WIDTH-1:0] 	src_a_sel_2_rn;
     reg [`SRC_B_SEL_WIDTH-1:0] 	src_b_sel_2_rn;
     reg 				wr_reg_2_rn;
@@ -206,39 +211,67 @@ module pipeline (
     reg [`PHY_REG_SEL-1:0] 		src2_2_rn;
     reg [`PHY_REG_SEL-1:0] 		dst_1_rn;
 	reg [`PHY_REG_SEL-1:0] 		dst_2_rn;
+    // Immediate Gerneration Info
+    reg [`DATA_LEN-1:0]         imm_1_rn;
+    reg [`DATA_LEN-1:0]         imm_2_rn;
 	// Addional Info
+    reg [`ADDR_LEN-1:0]         pc_rn;
 	reg 						inv1_rn;
 	reg							inv2_rn;
 
 
 	// DISPATCH
+    // signals from issue queue freelist
 	wire [`IQ_ENT_SEL-1:0]	iq_free_ent_1;
 	wire [`IQ_ENT_SEL-1:0]	iq_free_ent_2;
 	wire 					iq_free_valid_1;
 	wire 					iq_free_valid_2;
 
+    // signals from immediate buffer freelist
+    wire                    imm_valid_1;
+    wire                    imm_valid_2;
     wire [`IB_ENT_SEL-1:0]  ib_free_ent_1;
     wire [`IB_ENT_SEL-1:0]  ib_free_ent_2;
     wire 					ib_free_valid_1;
 	wire 					ib_free_valid_2;
+
+    // signals from PC buffer freelist
+    wire                    pc_valid_1;
+    wire                    pc_valid_2;
+    wire [`PB_ENT_SEL-1:0]  pb_free_ent_1;
+    wire [`PB_ENT_SEL-1:0]  pb_free_ent_2;
+    wire                    pb_free_valid_1;
+    wire                    pb_free_valid_2;
 
 	wire					allocatable_iq;
 	wire					allocatable_ib;
 	wire					allocatable_rob;
 	wire					allocatable_lq;
 	wire					allocatable_sq;
+    wire                    allocatable_pb;
 
 	// ISSUE
+    // selected instructions
 	wire [`IQ_ENT_SEL-1:0]	issued_1;
 	wire [`IQ_ENT_SEL-1:0]	issued_2;
 	wire					issued_valid_1;
 	wire					issued_valid_2;
+
+    // if immediate instruction is issued
     wire [`IB_ENT_SEL-1:0]	issued_imm_1;
 	wire [`IB_ENT_SEL-1:0]	issued_imm_2;
 	wire					issued_imm_valid_1;
 	wire					issued_imm_valid_2;
     wire [`DATA_LEN-1:0]    issued_imm_value_1;
     wire [`DATA_LEN-1:0]    issued_imm_value_2;
+
+    // if PC-relative instruction is issued
+    wire [`PB_ENT_SEL-1:0]  issued_pc_1;
+    wire [`PB_ENT_SEL-1:0]  issued_pc_2;
+    wire                    issued_pc_valid_1;
+    wire                    issued_pc_valid_2;
+    wire [`ADDR_LEN-1:0]    issued_pc_value_1;
+    wire [`ADDR_LEN-1:0]    issued_pc_value_2;
 
 
     // IF Stage********************************************************
@@ -517,22 +550,18 @@ module pipeline (
     renaming_logic renaming(
     .clk(clk),
     .reset(reset),
-    .rs1_1(rs1_1),
-    .rs2_1(rs2_1),
-    .dst1(dst1),
-    .uses_rs1_1(uses_rs1_1),
-    .uses_rs2_1(uses_rs2_1),
-    .rs1_2(rs1_2),
-    .rs2_2(rs2_2),
-    .dst2(dst2),
-    .uses_rs1_2(uses_rs1_2),
-    .uses_rs2_2(uses_rs2_2),
+    .uses_rs1_1(uses_rs1__id),
+    .uses_rs2_1(uses_rs2_1_id),
+    .uses_rs1_2(uses_rs1_2_id),
+    .uses_rs2_2(uses_rs2_2_id),
     .phy_dst_valid_1(phy_dst_valid_1),
     .phy_dst_valid_2(phy_dst_valid_2),
     .phy_src1_1_from_rat(phy_src1_1_from_rat),
     .phy_src2_1_from_rat(phy_src2_1_from_rat),
     .phy_src1_2_from_rat(phy_src1_2_from_rat),
     .phy_src2_2_from_rat(phy_src2_2_from_rat),
+    .phy_dst_1_from_rat(phy_ori_dst_1),
+    .phy_dst_2_from_rat(phy_ori_dst_2),
     .phy_dst_1_from_free_list(phy_dst_1_from_freelist),
     .phy_dst_2_from_free_list(phy_dst_2_from_freelist),
     .WAW_valid(WAW_valid),
@@ -544,10 +573,32 @@ module pipeline (
     .phy_src2_2(phy_src2_2)
 	);
 
+    // immediate generation
+    imm_gen imm_gen1(
+    .inst(inst1_id),
+    .imm_type(imm_type_1_id),
+    .imm(imm_1)
+    );
+
+    imm_gen imm_gen2(
+    .inst(inst2_id),
+    .imm_type(imm_type_2_id),
+    .imm(imm_2)
+    );
+
+    brimm_gen   brimm_gen1(
+    .inst(inst_1_id),
+    .imm_type(brimm_1)
+    );
+
+    brimm_gen   brimm_gen2(
+    .inst(inst_2_id),
+    .imm_type(brimm_2)
+    );
+
 	// RN/DP Pipeline Register update
 	always @ (posedge clk) begin
 		if (reset | kill_RN) begin
-			imm_type_1_rn 					<= 0;
 			src_a_sel_1_rn					<= 0;
 			src_b_sel_1_rn					<= 0;
 			wr_reg_1_rn						<= 0;
@@ -558,7 +609,7 @@ module pipeline (
 			md_req_in_1_signed_1_rn			<= 0;
 			md_req_in_2_signed_1_rn			<= 0;
 			md_req_out_sel_1_rn				<= 0;
-			imm_type_2_rn 					<= 0;
+            imm_1_rn                        <= 0;
 			src_a_sel_2_rn					<= 0;
 			src_b_sel_2_rn					<= 0;
 			wr_reg_2_rn						<= 0;
@@ -569,7 +620,9 @@ module pipeline (
 			md_req_in_1_signed_2_rn			<= 0;
 			md_req_in_2_signed_2_rn			<= 0;
 			md_req_out_sel_2_rn				<= 0;
+            imm_2_rn                        <= 0;
 
+            pc_rn                           <= 0;
 			src1_1_rn						<= 0;
 			src2_1_rn						<= 0;
 			src1_2_rn						<= 0;
@@ -578,8 +631,9 @@ module pipeline (
 			dst_2_rn						<= 0;
 			inv1_rn							<= 0;
 			inv2_rn							<= 0;
+            isbranch1_rn                    <= 0;
+            isbranch2_rn                    <= 0;
 		end else if (~stall_RN) begin
-			imm_type_1_rn 					<= imm_type_1_id;
 			src_a_sel_1_rn					<= src_a_sel_1_id;
 			src_b_sel_1_rn					<= src_b_sel_1_id;
 			wr_reg_1_rn						<= wr_reg_1_id;
@@ -590,7 +644,7 @@ module pipeline (
 			md_req_in_1_signed_1_rn			<= md_req_in_1_signed_1_id;
 			md_req_in_2_signed_1_rn			<= md_req_in_2_signed_1_id;
 			md_req_out_sel_1_rn				<= md_req_out_sel_1_id;
-			imm_type_2_rn 					<= imm_type_2_id;
+            imm_1_rn                        <= isbranch1_id ? brimm_1 : imm_1;
 			src_a_sel_2_rn					<= src_a_sel_2_id;
 			src_b_sel_2_rn					<= src_b_sel_2_id;
 			wr_reg_2_rn						<= wr_reg_2_id;
@@ -601,7 +655,9 @@ module pipeline (
 			md_req_in_1_signed_2_rn			<= md_req_in_1_signed_2_id;
 			md_req_in_2_signed_2_rn			<= md_req_in_2_signed_2_id;
 			md_req_out_sel_2_rn				<= md_req_out_sel_2_id;
+            imm_2_rn                        <= isbranch2_id ? brimm_2 : imm_2;
 
+            pc_rn                           <= pc_id;
 			src1_1_rn						<= phy_src1_1;
 			src2_1_rn						<= phy_src2_1;
 			src1_2_rn						<= phy_src1_2;
@@ -610,15 +666,22 @@ module pipeline (
 			dst_2_rn						<= phy_dst_2;
 			inv1_rn							<= inv1_id;
 			inv2_rn							<= inv2_id;
+            isbranch1_rn                    <= isbranch1_id;
+            isbranch2_rn                    <= isbranch2_id;
 		end
 
 	end
 
 	// DP Stage*************************************************
-	assign stall_DP = ~allocatable_iq | ~allocatable_ib | ~allocatable_rob
-					| ~allocatable_lq | ~allocatable_sq;
+	assign stall_DP = ~allocatable_iq | ~allocatable_ib | ~allocatable_pb
+					| ~allocatable_rob| ~allocatable_lq | ~allocatable_sq;
 	assign kill_DP = prmiss;
 
+    // isbranch already includes JAL and JALR
+    assign imm_valid_1 = ~inv1_rn && (isbranch1_rn || (src_b_sel_1_rn == `SRC_B_IMM));
+    assign imm_valid_2 = ~inv2_rn && (isbranch2_rn || (src_b_sel_2_rn == `SRC_B_IMM));
+    assign pc_valid_1 = ~inv1_rn && (isbranch1_rn || (src_a_sel_1_rn == `SRC_A_PC));
+    assign pc_valid_2 = ~inv2_rn && (isbranch2_rn || (src_a_sel_2_rn == `SRC_A_PC));
 
 	// Dispatch Instatnces
 	freelist #(`IQ_ENT_NUM, `IQ_ENT_SEL)
@@ -640,14 +703,13 @@ module pipeline (
     .allocatable(allocatable_iq)
     );
 
-    // please add imm_gen here
-
+    // 
     freelist #(`IB_ENT_NUM, `IB_ENT_SEL)
     ib_freelist (
     .clk(clk),
     .reset(reset),
-    .invalid1(),     // valid only when instruction uses immediate for execution
-    .invalid2(),     // 
+    .invalid1(imm_valid_1),
+    .invalid2(imm_valid_2),
     .prmiss(prmiss),
     .released_1(issued_imm_1),
     .released_2(issued_imm_2),
@@ -661,23 +723,65 @@ module pipeline (
     .allocatable(allocatable_ib)
     );
 
-    immediate_buffer imm_buffer (
+
+    // store immediate value 
+    value_buffer #(`IB_ENT_NUM, `IB_ENT_SEL, `DATA_LEN)
+    immediate_buffer (
     .clk(clk),
     .reset(reset),
     .invalid1(ib_free_valid_1),
     .invalid2(ib_free_valid_2),
-    .imm_ptr_1(ib_free_ent_1),
-    .imm_ptr_2(ib_free_ent_2),
-    .imm_value_1(imm_value_1),
-    .imm_value_2(imm_value_2),
+    .ptr_1(ib_free_ent_1),
+    .ptr_2(ib_free_ent_2),
+    .value_1(imm_value_1),
+    .value_2(imm_value_2),
     .prmiss(prmiss),
-    .issued_1(),        // signals from select logic
+    .issued_1(),        // if selected instruction is immediate?
     .issued_2(),
-    .issued_imm_ptr_1(issued_imm_1),    // imm ptr from select logic
-    .issued_imm_ptr_2(issued_imm_2),
-    .issued_imm_value_1(issued_imm_value_1),
-    .issued_imm_value_1(issued_imm_value_1)
+    .issued_ptr_1(issued_imm_1),    // imm buffer ptr from select logic
+    .issued_ptr_2(issued_imm_2),
+    .issued_value_1(issued_imm_value_1),
+    .issued_value_1(issued_imm_value_1)
+    );
+
+    freelist #(`PB_ENT_NUM, `PB_ENT_SEL)
+    pb_freelist (
+    .clk(clk),
+    .reset(reset),
+    .invalid1(pc_valid_1),
+    .invalid2(pc_valid_2),
+    .prmiss(prmiss),
+    .released_1(issued_pc_1),
+    .released_2(issued_pc_2),
+    .released_valid_1(issued_pc_valid_1),
+    .released_valid_2(issued_pc_valid_2),
+    .stall_DP(stall_DP),
+    .alloc_1(pb_free_ent_1),
+    .alloc_2(pb_free_ent_2),
+    .alloc_valid_1(pb_free_valid_1),
+    .alloc_valid_2(pb_free_valid_2),
+    .allocatable(allocatable_pb)
+    );
+
+    value_buffer #(`PB_ENT_NUM, `PB_ENT_SEL, `ADDR_LEN)
+    pc_buffer (
+    .clk(clk),
+    .reset(reset),
+    .invalid1(pb_free_valid_1),
+    .invalid2(pb_free_valid_2),
+    .ptr_1(pb_free_ent_1),
+    .ptr_2(pb_free_ent_2),
+    .value_1(pc_value_1),
+    .value_2(pc_value_2),
+    .prmiss(prmiss),
+    .issued_1(),        // if selected instruction is immediate?
+    .issued_2(),
+    .issued_ptr_1(issued_pc_1),    // pc buffer ptr from select logic
+    .issued_ptr_2(issued_pc_2),
+    .issued_value_1(issued_pc_value_1),
+    .issued_value_1(issued_pc_value_1)
     );
 
 
 endmodule
+
