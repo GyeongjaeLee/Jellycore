@@ -243,6 +243,12 @@ module pipeline (
     wire                    pb_free_valid_1;
     wire                    pb_free_valid_2;
 
+    // signals for LQ and SQ
+    wire                    ld_valid_1;
+    wire                    ld_valid_2;
+    wire                    st_valid_1;
+    wire                    st_valid_2;
+    
 	wire					allocatable_iq;
 	wire					allocatable_ib;
 	wire					allocatable_rob;
@@ -588,12 +594,12 @@ module pipeline (
 
     brimm_gen   brimm_gen1(
     .inst(inst_1_id),
-    .imm_type(brimm_1)
+    .brimm(brimm_1)
     );
 
     brimm_gen   brimm_gen2(
     .inst(inst_2_id),
-    .imm_type(brimm_2)
+    .brimm(brimm_2)
     );
 
 	// RN/DP Pipeline Register update
@@ -682,6 +688,12 @@ module pipeline (
     assign imm_valid_2 = ~inv2_rn && (isbranch2_rn || (src_b_sel_2_rn == `SRC_B_IMM));
     assign pc_valid_1 = ~inv1_rn && (isbranch1_rn || (src_a_sel_1_rn == `SRC_A_PC));
     assign pc_valid_2 = ~inv2_rn && (isbranch2_rn || (src_a_sel_2_rn == `SRC_A_PC));
+
+    // whether instruction is load/store
+    assign ld_valid_1 = ~inv1_rn && ((rs_ent_1_rn == `RS_ENT_LDST) && wr_reg_1_rn);
+    assign ld_valid_2 = ~inv2_rn && ((rs_ent_2_rn == `RS_ENT_LDST) && wr_reg_2_rn);
+    assign st_valid_1 = ~inv1_rn && ((rs_ent_1_rn == `RS_ENT_LDST) && uses_rs2_1_rn);
+    assign st_valid_2 = ~inv2_rn && ((rs_ent_2_rn == `RS_ENT_LDST) && uses_rs2_2_rn);
 
 	// Dispatch Instatnces
 	freelist #(`IQ_ENT_NUM, `IQ_ENT_SEL)

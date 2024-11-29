@@ -106,7 +106,6 @@ module issue_queue(
     reg [`IQ_ENT_SEL:0]     j;
     reg [`IQ_ENT_SEL:0]     k;
 
-    // each entry forms its own always block
     genvar i;
     generate
         for (i = 0; i < `IQ_ENT_NUM; i = i + 1) begin
