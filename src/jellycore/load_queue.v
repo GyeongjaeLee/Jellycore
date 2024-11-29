@@ -4,14 +4,14 @@
 module load_queue (
     input wire clk,
     input wire reset,
-    input wire dispatch_load_valid_1,       // New Load instruction dispatch (way 1)
-    input wire dispatch_load_valid_2,       // New Load instruction dispatch (way 2)
+    input wire dispatch_lq_valid_1,       // New Load instruction dispatch (way 1)
+    input wire dispatch_lq_valid_2,       // New Load instruction dispatch (way 2)
     input wire [`PHY_REG_SEL-1:0] base_reg_1,   // Base register (way 1)
     input wire [`PHY_REG_SEL-1:0] base_reg_2,   // Base register (way 2)
     input wire [`IMM_LEN-1:0] offset_1,   // Immediate value (way 1)
     input wire [`IMM_LEN-1:0] offset_2,   // Immediate value (way 2)
-    input wire [`ROB_SEL-1:0] rob_idx_1,    // ROB Index (way 1)
-    input wire [`ROB_SEL-1:0] rob_idx_2,    // ROB Index (way 2)
+    input wire [`ROB_IDX_NUM-1:0] rob_idx_1,    // ROB Index (way 1)
+    input wire [`ROB_IDX_NUM-1:0] rob_idx_2,    // ROB Index (way 2)
     input wire address_ready,               // Address calculation completed
     input wire [`ADDR_LEN-1:0] calculated_address, // Calculated address
     input wire [`LQ_SEL-1:0] update_rob_idx, // Index of the Load Queue entry to update
@@ -33,7 +33,8 @@ module load_queue (
 
     reg [`LQ_SEL-1:0] head, tail;
     reg [`LQ_SEL:0] count;
-    reg [`LQ_SEL-1:0] loop_idx; // Replace integer with reg
+    reg [`LQ_SEL:0] count_temp;
+    reg [`LQ_SEL-1:0] loop_idx;
 
     always @(posedge clk or posedge reset) begin
         if (reset) begin
@@ -54,61 +55,66 @@ module load_queue (
                 address_ready_array[loop_idx] <= 0;
             end
         end else begin
-         // Dispatch Logic
-        if (dispatch_load_valid_1 && !dispatch_load_valid_2 && !lq_full) begin
-            // Case 1: Only instruction 1 is valid
-            valid[tail] <= 1;
-            base_reg_array[tail] <= base_reg_1;
-            offset_array[tail] <= offset_1;
-            rob_idx_array[tail] <= rob_idx_1;
-            address_ready_array[tail] <= 0;
-            tail <= (tail + 1) % `LQ_NUM;
-            count <= count + 1;
-        end else if (!dispatch_load_valid_1 && dispatch_load_valid_2 && !lq_full) begin
-            // Case 2: Only instruction 2 is valid
-            valid[tail] <= 1;
-            base_reg_array[tail] <= base_reg_2;
-            offset_array[tail] <= offset_2;
-            rob_idx_array[tail] <= rob_idx_2;
-            address_ready_array[tail] <= 0;
-            tail <= (tail + 1) % `LQ_NUM;
-            count <= count + 1;
-        end else if (dispatch_load_valid_1 && dispatch_load_valid_2 && (count < `LQ_NUM - 1)) begin
-            // Case 3: Both instructions are valid
-            valid[tail] <= 1;
-            base_reg_array[tail] <= base_reg_1;
-            offset_array[tail] <= offset_1;
-            rob_idx_array[tail] <= rob_idx_1;
-            address_ready_array[tail] <= 0;
+            count_temp = count;
 
-            valid[(tail + 1) % `LQ_NUM] <= 1;
-            base_reg_array[(tail + 1) % `LQ_NUM] <= base_reg_2;
-            offset_array[(tail + 1) % `LQ_NUM] <= offset_2;
-            rob_idx_array[(tail + 1) % `LQ_NUM] <= rob_idx_2;
-            address_ready_array[(tail + 1) % `LQ_NUM] <= 0;
+            // Dispatch Logic
+            if (dispatch_lq_valid_1 && !dispatch_lq_valid_2 && !lq_full) begin
+                // Case 1: Only instruction 1 is valid
+                valid[tail] <= 1;
+                base_reg_array[tail] <= base_reg_1;
+                offset_array[tail] <= offset_1;
+                rob_idx_array[tail] <= rob_idx_1;
+                address_ready_array[tail] <= 0;
+                tail <= (tail + 1) % `LQ_NUM;
+                count_temp = count_temp + 1;
 
-            tail <= (tail + 2) % `LQ_NUM;
-            count <= count + 2;
-        end
+            end else if (!dispatch_lq_valid_1 && dispatch_lq_valid_2 && !lq_full) begin
+                // Case 2: Only instruction 2 is valid
+                valid[tail] <= 1;
+                base_reg_array[tail] <= base_reg_2;
+                offset_array[tail] <= offset_2;
+                rob_idx_array[tail] <= rob_idx_2;
+                address_ready_array[tail] <= 0;
+                tail <= (tail + 1) % `LQ_NUM;
+                count_temp = count_temp + 1;
+
+            end else if (dispatch_lq_valid_1 && dispatch_lq_valid_2 && (count < `LQ_NUM - 1)) begin
+                // Case 3: Both instructions are valid
+                valid[tail] <= 1;
+                base_reg_array[tail] <= base_reg_1;
+                offset_array[tail] <= offset_1;
+                rob_idx_array[tail] <= rob_idx_1;
+                address_ready_array[tail] <= 0;
+
+                valid[(tail + 1) % `LQ_NUM] <= 1;
+                base_reg_array[(tail + 1) % `LQ_NUM] <= base_reg_2;
+                offset_array[(tail + 1) % `LQ_NUM] <= offset_2;
+                rob_idx_array[(tail + 1) % `LQ_NUM] <= rob_idx_2;
+                address_ready_array[(tail + 1) % `LQ_NUM] <= 0;
+
+                tail <= (tail + 2) % `LQ_NUM;
+                count_temp = count_temp + 2;
+            end
 
             // Address Calculation Update
             if (address_ready && valid[update_rob_idx] && !address_ready_array[update_rob_idx]) begin
                 address_array[update_rob_idx] <= calculated_address;
                 address_ready_array[update_rob_idx] <= 1;
             end
-
             /*
             // Commit Logic
             if (commit_enable && !lq_empty && valid[head] && address_ready_array[head]) begin
                 valid[head] <= 0;
                 head <= (head + 1) % `LQ_NUM;
-                count <= count - 1;
+                count_temp = count_temp - 1;
             end
             */
+            // Update Count
+            count <= count_temp;
 
             // Update Status
-            lq_full <= (count >= `LQ_NUM);
-            lq_empty <= (count == 0);
+            lq_full <= (count_temp >= `LQ_NUM - 1);
+            lq_empty <= (count_temp == 0);
         end
     end
 endmodule

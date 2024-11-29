@@ -4,21 +4,21 @@
 module reorder_buffer (
     input wire clk,
     input wire reset,
-    input wire dispatch_valid_1,          // New instruction dispatch (entry 1)
-    input wire dispatch_valid_2,          // New instruction dispatch (entry 2)
-    input wire [`ROB_SEL-1:0] rob_idx_in_1, // ROB Index from dispatcher (entry 1)
-    input wire [`ROB_SEL-1:0] rob_idx_in_2, // ROB Index from dispatcher (entry 2)
+    input wire dispatch_rob_valid_1,          // New instruction dispatch (entry 1)
+    input wire dispatch_rob_valid_2,          // New instruction dispatch (entry 2)
+    input wire [`ROB_IDX_NUM-1:0] rob_idx_in_1, // ROB Index from dispatcher (entry 1)
+    input wire [`ROB_IDX_NUM-1:0] rob_idx_in_2, // ROB Index from dispatcher (entry 2)
     input wire commit_enable_1,           // Commit instruction (entry 1)
     input wire commit_enable_2,           // Commit instruction (entry 2)
     input wire violation_detected,        // Memory Order Violation detected
     output reg rob_full,                  // ROB Full
     output reg rob_empty,                 // ROB Empty
-    output reg [`ROB_SEL-1:0] commit_rob_idx_1, // Committed ROB Index (entry 1)
-    output reg [`ROB_SEL-1:0] commit_rob_idx_2  // Committed ROB Index (entry 2)
+    output reg [`ROB_IDX_NUM-1:0] commit_rob_idx_1, // Committed ROB Index (entry 1)
+    output reg [`ROB_IDX_NUM-1:0] commit_rob_idx_2  // Committed ROB Index (entry 2)
 );
 
     reg valid[`ROB_NUM-1:0];
-    reg [`ROB_SEL-1:0] rob_idx_array[`ROB_NUM-1:0]; // Internal ROB Index array
+    reg [`ROB_IDX_NUM:0] rob_idx_array[`ROB_NUM-1:0]; // Internal ROB Index array
     reg [`ROB_SEL-1:0] head, tail;
     reg [`ROB_SEL:0] count;
 
@@ -39,7 +39,7 @@ module reorder_buffer (
             end
         end else begin
             // Dispatch Logic
-            if (dispatch_valid_1 && dispatch_valid_2 && (count < `ROB_NUM - 1)) begin
+            if (dispatch_rob_valid_1 && dispatch_rob_valid_2 && (count < `ROB_NUM - 1)) begin
                 // Case 1: Both instructions are valid
                 valid[tail] <= 1;
                 rob_idx_array[tail] <= rob_idx_in_1;
@@ -49,13 +49,13 @@ module reorder_buffer (
 
                 tail <= (tail + 2) % `ROB_NUM; 
                 count <= count + 2;
-            end else if (dispatch_valid_1 && !rob_full) begin
+            end else if (dispatch_rob_valid_1 && !rob_full) begin
                 // Case 2: Only instruction 1 is valid
                 valid[tail] <= 1;
                 rob_idx_array[tail] <= rob_idx_in_1;
                 tail <= (tail + 1) % `ROB_NUM;
                 count <= count + 1;
-            end else if (dispatch_valid_2 && !rob_full) begin
+            end else if (dispatch_rob_valid_2 && !rob_full) begin
                 // Case 3: Only instruction 2 is valid
                 valid[tail] <= 1;
                 rob_idx_array[tail] <= rob_idx_in_2;

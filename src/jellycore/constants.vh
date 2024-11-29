@@ -95,8 +95,8 @@
 `define ROB_SEL 7
 //`define ROB_NUM 2**`ROB_SEL
 `define ROB_NUM 128
-// `define RRF_SEL `ROB_SEL
-// `define RRF_NUM `ROB_NUM
+`define ROB_IDX_NUM 8
+
 
 //src_a
 `define SRC_A_SEL_WIDTH 2
