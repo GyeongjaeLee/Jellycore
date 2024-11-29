@@ -16,6 +16,7 @@
 `define DATA_LEN 32
 `define INSN_LEN 32
 `define ADDR_LEN 32
+`define IMM_LEN 32
 `define ISSUE_NUM 2
 `define ENTRY_POINT `ADDR_LEN'h0
 //`define REQDATA_LEN 2
@@ -47,10 +48,6 @@
 `define LQ_NUM 16
 `define SQ_SEL 4
 `define SQ_NUM 16
-
-`define IMM_WIDTH 32
-`define DATA_WIDTH 32
-`define ADDR_WIDTH 32
 
 //Port Select
 `define PORT_SEL 2

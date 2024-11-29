@@ -6,29 +6,29 @@ module load_queue (
     input wire reset,
     input wire dispatch_load_valid_1,       // New Load instruction dispatch (way 1)
     input wire dispatch_load_valid_2,       // New Load instruction dispatch (way 2)
-    input wire [`REG_SEL-1:0] base_reg_1,   // Base register (way 1)
-    input wire [`REG_SEL-1:0] base_reg_2,   // Base register (way 2)
-    input wire [`IMM_WIDTH-1:0] offset_1,   // Immediate value (way 1)
-    input wire [`IMM_WIDTH-1:0] offset_2,   // Immediate value (way 2)
+    input wire [`PHY_REG_SEL-1:0] base_reg_1,   // Base register (way 1)
+    input wire [`PHY_REG_SEL-1:0] base_reg_2,   // Base register (way 2)
+    input wire [`IMM_LEN-1:0] offset_1,   // Immediate value (way 1)
+    input wire [`IMM_LEN-1:0] offset_2,   // Immediate value (way 2)
     input wire [`ROB_SEL-1:0] rob_idx_1,    // ROB Index (way 1)
     input wire [`ROB_SEL-1:0] rob_idx_2,    // ROB Index (way 2)
     input wire address_ready,               // Address calculation completed
-    input wire [`ADDR_WIDTH-1:0] calculated_address, // Calculated address
+    input wire [`ADDR_LEN-1:0] calculated_address, // Calculated address
     input wire [`LQ_SEL-1:0] update_rob_idx, // Index of the Load Queue entry to update
     input wire commit_enable,               // Commit Load instruction
     output reg lq_full,                     // Load Queue Full
     output reg lq_empty,                    // Load Queue Empty
-    output reg [`ADDR_WIDTH-1:0] load_address, // Load Address for execution
+    output reg [`ADDR_LEN-1:0] load_address, // Load Address for execution
     output reg [`ROB_SEL-1:0] load_rob_idx,    // ROB Index for execution
     output reg load_ready                   // Load Instruction Ready
 );
 
     // Internal Load Queue Entries as separate arrays
     reg valid[`LQ_NUM-1:0];
-    reg [`REG_SEL-1:0] base_reg_array[`LQ_NUM-1:0];
-    reg [`IMM_WIDTH-1:0] offset_array[`LQ_NUM-1:0];
+    reg [`PHY_REG_SEL-1:0] base_reg_array[`LQ_NUM-1:0];
+    reg [`IMM_LEN-1:0] offset_array[`LQ_NUM-1:0];
     reg [`ROB_SEL-1:0] rob_idx_array[`LQ_NUM-1:0];
-    reg [`ADDR_WIDTH-1:0] address_array[`LQ_NUM-1:0];
+    reg [`ADDR_LEN-1:0] address_array[`LQ_NUM-1:0];
     reg address_ready_array[`LQ_NUM-1:0];
 
     reg [`LQ_SEL-1:0] head, tail;
