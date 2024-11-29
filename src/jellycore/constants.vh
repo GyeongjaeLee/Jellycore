@@ -48,6 +48,10 @@
 `define SQ_SEL 4
 `define SQ_NUM 16
 
+`define IMM_WIDTH 32
+`define DATA_WIDTH 32
+`define ADDR_WIDTH 32
+
 //Port Select
 `define PORT_SEL 2
 `define PORT_NUM 4
