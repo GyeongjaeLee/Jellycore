@@ -39,19 +39,30 @@ module reorder_buffer (
             end
         end else begin
             // Dispatch Logic
-            if (dispatch_valid_1 && !rob_full) begin
+            if (dispatch_valid_1 && dispatch_valid_2 && (count < `ROB_NUM - 1)) begin
+                // Case 1: Both instructions are valid
                 valid[tail] <= 1;
-                rob_idx_array[tail] <= rob_idx_in_1; // Store incoming ROB index (entry 1)
-                tail <= (tail + 1) % `ROB_NUM;
-                count <= count + 1;
-            end
-            if (dispatch_valid_2 && !rob_full && (count < `ROB_NUM)) begin
-                valid[tail] <= 1;
-                rob_idx_array[tail] <= rob_idx_in_2; // Store incoming ROB index (entry 2)
-                tail <= (tail + 1) % `ROB_NUM;
-                count <= count + 1;
-            end
+                rob_idx_array[tail] <= rob_idx_in_1;
 
+                valid[(tail + 1) % `ROB_NUM] <= 1;
+                rob_idx_array[(tail + 1) % `ROB_NUM] <= rob_idx_in_2;
+
+                tail <= (tail + 2) % `ROB_NUM; 
+                count <= count + 2;
+            end else if (dispatch_valid_1 && !rob_full) begin
+                // Case 2: Only instruction 1 is valid
+                valid[tail] <= 1;
+                rob_idx_array[tail] <= rob_idx_in_1;
+                tail <= (tail + 1) % `ROB_NUM;
+                count <= count + 1;
+            end else if (dispatch_valid_2 && !rob_full) begin
+                // Case 3: Only instruction 2 is valid
+                valid[tail] <= 1;
+                rob_idx_array[tail] <= rob_idx_in_2;
+                tail <= (tail + 1) % `ROB_NUM;
+                count <= count + 1;
+            end  
+            /*
             // Commit Logic
             if (commit_enable_1 && !rob_empty && valid[head]) begin
                 commit_rob_idx_1 <= rob_idx_array[head]; // Output the committed ROB index (entry 1)
@@ -81,7 +92,7 @@ module reorder_buffer (
                 tail <= 0;
                 count <= 0;
             end
-
+            */
             // Update Status
             rob_full <= (count >= `ROB_NUM);
             rob_empty <= (count == 0);

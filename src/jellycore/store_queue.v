@@ -61,7 +61,8 @@ module store_queue (
             end
         end else begin
             // Dispatch Logic
-            if (dispatch_store_valid_1 && !sq_full) begin
+            if (dispatch_store_valid_1 && !dispatch_store_valid_2 && !sq_full) begin
+                // Case 1: Only instruction 1 is valid
                 valid[tail] <= 1;
                 base_reg_array[tail] <= base_reg_1;
                 offset_array[tail] <= offset_1;
@@ -70,8 +71,9 @@ module store_queue (
                 address_ready_array[tail] <= 0;
                 tail <= (tail + 1) % `SQ_NUM;
                 count <= count + 1;
-            end
-            if (dispatch_store_valid_2 && !sq_full && (count < `SQ_NUM - 1)) begin
+
+            end else if (!dispatch_store_valid_1 && dispatch_store_valid_2 && !sq_full) begin
+                // Case 2: Only instruction 2 is valid
                 valid[tail] <= 1;
                 base_reg_array[tail] <= base_reg_2;
                 offset_array[tail] <= offset_2;
@@ -80,7 +82,28 @@ module store_queue (
                 address_ready_array[tail] <= 0;
                 tail <= (tail + 1) % `SQ_NUM;
                 count <= count + 1;
+
+            end else if (dispatch_store_valid_1 && dispatch_store_valid_2 && (count < `SQ_NUM - 1)) begin
+                // Case 3: Both instruction 1 and instruction 2 are valid
+                valid[tail] <= 1;
+                base_reg_array[tail] <= base_reg_1;
+                offset_array[tail] <= offset_1;
+                data_array[tail] <= store_data_1;
+                rob_idx_array[tail] <= rob_idx_1;
+                address_ready_array[tail] <= 0;
+
+                valid[(tail + 1) % `SQ_NUM] <= 1;
+                base_reg_array[(tail + 1) % `SQ_NUM] <= base_reg_2;
+                offset_array[(tail + 1) % `SQ_NUM] <= offset_2;
+                data_array[(tail + 1) % `SQ_NUM] <= store_data_2;
+                rob_idx_array[(tail + 1) % `SQ_NUM] <= rob_idx_2;
+                address_ready_array[(tail + 1) % `SQ_NUM] <= 0;
+
+                tail <= (tail + 2) % `SQ_NUM;
+                count <= count + 2;
+
             end
+
 
             // Address Calculation Update
             if (address_ready && valid[update_rob_idx_1] && !address_ready_array[update_rob_idx_1]) begin

@@ -54,27 +54,42 @@ module load_queue (
                 address_ready_array[loop_idx] <= 0;
             end
         end else begin
-            // Dispatch Logic for Way 1
-            if (dispatch_load_valid_1 && !lq_full) begin
-                valid[tail] <= 1;
-                base_reg_array[tail] <= base_reg_1;
-                offset_array[tail] <= offset_1;
-                rob_idx_array[tail] <= rob_idx_1;
-                address_ready_array[tail] <= 0;
-                tail <= (tail + 1) % `LQ_NUM;
-                count <= count + 1;
-            end
+         // Dispatch Logic
+        if (dispatch_load_valid_1 && !dispatch_load_valid_2 && !lq_full) begin
+            // Case 1: Only instruction 1 is valid
+            valid[tail] <= 1;
+            base_reg_array[tail] <= base_reg_1;
+            offset_array[tail] <= offset_1;
+            rob_idx_array[tail] <= rob_idx_1;
+            address_ready_array[tail] <= 0;
+            tail <= (tail + 1) % `LQ_NUM;
+            count <= count + 1;
+        end else if (!dispatch_load_valid_1 && dispatch_load_valid_2 && !lq_full) begin
+            // Case 2: Only instruction 2 is valid
+            valid[tail] <= 1;
+            base_reg_array[tail] <= base_reg_2;
+            offset_array[tail] <= offset_2;
+            rob_idx_array[tail] <= rob_idx_2;
+            address_ready_array[tail] <= 0;
+            tail <= (tail + 1) % `LQ_NUM;
+            count <= count + 1;
+        end else if (dispatch_load_valid_1 && dispatch_load_valid_2 && (count < `LQ_NUM - 1)) begin
+            // Case 3: Both instructions are valid
+            valid[tail] <= 1;
+            base_reg_array[tail] <= base_reg_1;
+            offset_array[tail] <= offset_1;
+            rob_idx_array[tail] <= rob_idx_1;
+            address_ready_array[tail] <= 0;
 
-            // Dispatch Logic for Way 2
-            if (dispatch_load_valid_2 && !lq_full && count < `LQ_NUM) begin
-                valid[tail] <= 1;
-                base_reg_array[tail] <= base_reg_2;
-                offset_array[tail] <= offset_2;
-                rob_idx_array[tail] <= rob_idx_2;
-                address_ready_array[tail] <= 0;
-                tail <= (tail + 1) % `LQ_NUM;
-                count <= count + 1;
-            end
+            valid[(tail + 1) % `LQ_NUM] <= 1;
+            base_reg_array[(tail + 1) % `LQ_NUM] <= base_reg_2;
+            offset_array[(tail + 1) % `LQ_NUM] <= offset_2;
+            rob_idx_array[(tail + 1) % `LQ_NUM] <= rob_idx_2;
+            address_ready_array[(tail + 1) % `LQ_NUM] <= 0;
+
+            tail <= (tail + 2) % `LQ_NUM;
+            count <= count + 2;
+        end
 
             // Address Calculation Update
             if (address_ready && valid[update_rob_idx] && !address_ready_array[update_rob_idx]) begin
