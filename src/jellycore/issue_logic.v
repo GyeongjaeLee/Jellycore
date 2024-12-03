@@ -57,6 +57,7 @@ module issue_queue(
     input wire [`ROB_SEL-1:0]       rob_num_2,
     input wire                      rob_sorting_bit_1,
     input wire                      rob_sorting_bit_2,
+    input wire                      wrap_around,
     input wire [`ROB_SEL-1:0]       prmiss_rob_num,
     input wire                      prmiss_rob_sorting_bit,
     input wire                      prmiss,
@@ -87,6 +88,7 @@ module issue_queue(
 
     // payload RAM
     reg [`ALU_OP_WIDTH-1:0]     alu_op      [`IQ_ENT_NUM-1:0];
+    reg                         sorting_bit [`IQ_ENT_NUM-1:0];
     reg [`ROB_SEL-1:0]          rob_num     [`IQ_ENT_NUM-1:0];
     reg [`LQ_SEL-1:0]           lq_idx      [`IQ_ENT_NUM-1:0];
     reg [`SQ_SEL-1:0]           sq_idx      [`IQ_ENT_NUM-1:0];
@@ -198,5 +200,16 @@ module issue_queue(
     
     end
 
-    
+
+    always @ (posedge clk) begin
+        // if rob wrap_around occurs, set all sorting bits
+        if (wrap_around) begin
+            for (k = 0; k < `IQ_ENT_NUM; k++) begin
+                sorting_bit[k] = 1;
+            end
+        end
+        sorting_bit[rob_num_1] = rob_sorting_bit_1;
+        sorting_bit[rob_num_2] = rob_sorting_bit_2;
+    end
+
 endmodule
