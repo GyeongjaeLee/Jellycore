@@ -1,5 +1,7 @@
 # JELLYCORE
-JELLYCORE is a RISC-V 2-wide Superscalar Out-of-Order Core supporting RV32IM instruction set. Written in Verilog HDL, it is being developed by Gyeongjae Lee and Hoje Lee at Yonsei University. JELLYCORE's microarchitecture is based on structures described in research papers and "Processor Microarchitecture: An Implementation Perspective". For detailed information about microarchitectue, please refer to [microarchiteure_guide.md](https://github.com/GyeongjaeLee/Jellycore/blob/main/.microarchitecture_guide.md).
+JELLYCORE is a RISC-V 2-wide Superscalar Out-of-Order Core supporting RV32IM instruction set. Written in Verilog HDL, it is being developed by Gyeongjae Lee and Hoje Lee at Yonsei University.
+
+JELLYCORE's microarchitecture is based on structures described in research papers and "Processor Microarchitecture: An Implementation Perspective". For detailed information about microarchitectue, please refer to [microarchiteure_guide.md](https://github.com/GyeongjaeLee/Jellycore/blob/main/microarchitecture_guide.md).
 
 Although still under development, JELLYCORE aimsto be synthesizable and testable on FPGAs. 
 
