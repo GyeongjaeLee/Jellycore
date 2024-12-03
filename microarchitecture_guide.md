@@ -1,3 +1,7 @@
+# Fetch
+
+# Decode
+
 # Register Renaming
 Register Renaming eliminates false dependences to exploit more ILP by renaming architectural register tags to physical register tags for every instruction.
 
@@ -11,3 +15,12 @@ An original destination tag should be sent to release itself in commit stage whi
 
 In this core, Front-end RAT contains speculative mapping information(non-committed) which can be replaced when branch mispredictions occur. On the other hand, Retirement RAT holds committed architectrual state. In every commit stage, destination
 
+# Dispatch
+
+# Issue (Wakeup/Select)
+
+# Execute
+
+# Writeback
+
+# Commit

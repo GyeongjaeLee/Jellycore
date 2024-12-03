@@ -8,37 +8,26 @@ $(MD)/btb.v \
 $(MD)/decoder.v \
 $(MD)/dmem.v \
 $(MD)/dualport_ram.v \
-$(MD)/exunit_alu.v \
-$(MD)/exunit_branch.v \
-$(MD)/exunit_ldst.v \
-$(MD)/exunit_mul.v \
+$(MD)/freelist.v \
+$(MD)/frontend_RAT.v \
 $(MD)/gshare.v \
 $(MD)/imem.v \
 $(MD)/imem_outa.v \
 $(MD)/imm_gen.v \
-$(MD)/mpft.v \
+$(MD)/issue_logic.v \
+$(MD)/load_queue.v \
 $(MD)/multiplier.v \
 $(MD)/pipeline_if.v \
 $(MD)/pipeline.v \
-$(MD)/prioenc.v \
 $(MD)/ram_sync_nolatch.v \
 $(MD)/ram_sync.v \
-$(MD)/reorderbuf.v \
-$(MD)/rrf_freelistmanager.v \
-$(MD)/rrf.v \
-$(MD)/rs_alu.v \
-$(MD)/rs_branch.v \
-$(MD)/rs_ldst.v \
-$(MD)/rs_mul.v \
-$(MD)/rs_reqgen.v \
-$(MD)/src_manager.v \
-$(MD)/srcopr_manager.v \
+$(MD)/rename.v \
+$(MD)/rob.v \
+$(MD)/scoreboard.v \
 $(MD)/srcsel.v \
-$(MD)/tag_generator.v \
-$(MD)/oldest_finder.v \
-$(MD)/storebuf.v \
-$(MD)/search_be.v \
-$(MD)/topsim.v
+$(MD)/store_queue.v \
+$(MD)/topsim.v \
+$(MD)/value_buffer.v
 
 OBJDBG = $(SIMDIR)/testbench.v
 OBJLST = $(SIMDIR)/testbench_last.v

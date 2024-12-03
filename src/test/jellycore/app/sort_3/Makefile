@@ -11,7 +11,7 @@ MIPSCC  = $(CMDPREF)riscv64-unknown-elf-gcc
 MIPSAS  = $(CMDPREF)riscv64-unknown-elf-as
 MIPSLD  = $(CMDPREF)riscv64-unknown-elf-ld
 OBJDUMP = $(CMDPREF)riscv64-unknown-elf-objdump
-MEMGEN  = memgen
+MEMGEN  = memgen	#(your memgen directory)
 
 CFLAGS  = -march=rv32im -mabi=ilp32 -O2
 AFLAGS  = -march=rv32im -mabi=ilp32
