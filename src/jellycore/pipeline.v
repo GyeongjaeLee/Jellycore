@@ -211,6 +211,8 @@ module pipeline (
     reg [`PHY_REG_SEL-1:0] 		src2_2_rn;
     reg [`PHY_REG_SEL-1:0] 		dst_1_rn;
 	reg [`PHY_REG_SEL-1:0] 		dst_2_rn;
+    reg [`PHY_REG_SEL-1:0]      dst_ori_1_rn;
+    reg [`PHY_REG_SEL-1:0]      dst_ori_2_rn;
     // Immediate Gerneration Info
     reg [`DATA_LEN-1:0]         imm_1_rn;
     reg [`DATA_LEN-1:0]         imm_2_rn;
@@ -221,11 +223,46 @@ module pipeline (
 
 
 	// DISPATCH
+    // signals from reorder buffer
+    wire [`ROB_SEL-1:0]     rob_idx_1;
+    wire [`ROB_SEL-1:0]     rob_idx_2;
+    wire                    rob_sorting_bit_1;
+    wire                    rob_sorting_bit_2;
+    wire                    wrap_around;
+
+    // signals from load/store queue
+    wire [`LQ_SEL-1:0]      lq_idx_1;
+    wire [`LQ_SEL-1:0]      lq_idx_2;
+    wire [`SQ_SEL-1:0]      sq_idx_1;
+    wire [`SQ_SEL-1:0]      sq_idx_2;
+
+    // signals from scoreboard
+    wire                    match1_1;
+    wire                    match2_1;
+    wire                    match1_2;
+    wire                    match2_2;
+    wire [`MAX_LATENCY-1:0] shift_r1_1;
+    wire [`MAX_LATENCY-1:0] shift_r2_1;
+    wire [`MAX_LATENCY-1:0] shift_r1_2;
+    wire [`MAX_LATENCY-1:0] shift_r2_2;
+    wire [`MAX_LATENCY-1:0] delay1_1;
+    wire [`MAX_LATENCY-1:0] delay2_1;
+    wire [`MAX_LATENCY-1:0] delay1_2;
+    wire [`MAX_LATENCY-1:0] delay2_2;
+
     // signals from issue queue freelist
 	wire [`IQ_ENT_SEL-1:0]	iq_free_ent_1;
 	wire [`IQ_ENT_SEL-1:0]	iq_free_ent_2;
 	wire 					iq_free_valid_1;
 	wire 					iq_free_valid_2;
+    wire [`PHY_REG_SEL-1:0] sel_src1_1;
+    wire [`PHY_REG_SEL-1:0] sel_src2_1;
+    wire [`PHY_REG_SEL-1:0] sel_src1_2;
+    wire [`PHY_REG_SEL-1:0] sel_src2_2;
+    wire [`PHY_REG_SEL-1:0] sel_dst_1;
+    wire [`PHY_REG_SEL-1:0] sel_dst_2;
+    wire [`ALU_OP_WIDTH-1:0]    sel_alu_op_1;
+    wire [`ALU_OP_WIDTH-1:0]    sel_alu_op_2;
 
     // signals from immediate buffer freelist
     wire                    imm_valid_1;
@@ -523,7 +560,7 @@ module pipeline (
     .released_2(com_phy_tag_2),
     .released_valid_1(com_valid_1),
     .released_valid_2(com_valid_2),
-    .stall_DP(stall_DP),
+    .stall(stall_RN),
     .phy_dst_1(phy_dst_1_from_freelist),
     .phy_dst_2(phy_dst_2_from_freelist),
     .phy_dst_valid_1(phy_dst_valid_1),
@@ -670,6 +707,8 @@ module pipeline (
 			src2_2_rn						<= phy_src2_2;
 			dst_1_rn						<= phy_dst_1;
 			dst_2_rn						<= phy_dst_2;
+            dst_ori_1_rn                    <= phy_ori_dst_1;
+            dst_ori_2_rn                    <= phy_ori_dst_2;
 			inv1_rn							<= inv1_id;
 			inv2_rn							<= inv2_id;
             isbranch1_rn                    <= isbranch1_id;
@@ -696,23 +735,65 @@ module pipeline (
     assign st_valid_2 = ~inv2_rn && ((rs_ent_2_rn == `RS_ENT_LDST) && uses_rs2_2_rn);
 
 	// Dispatch Instatnces
-	freelist #(`IQ_ENT_NUM, `IQ_ENT_SEL)
-	iq_freelist (
+    // reorder buffer allocation
+    reorder_buffer rob (
     .clk(clk),
     .reset(reset),
     .invalid1(inv1_rn),
     .invalid2(inv2_rn),
-    .prmiss(prmiss),
-    .released_1(issued_1),
-    .released_2(issued_2),
-    .released_valid_1(issued_valid_1),
-    .released_valid_2(issued_valid_2),
+    .ld_vaild1(ld_valid_1),
+    .ld_valid2(ld_valid_2),
+    .st_valid1(st_valid_1),
+    .st_valid2(st_valid_2),
+    .dst_1(dst_1_rn),
+    .dst_2(dst_2_rn),
+    .phy_ori_dst_1(dst_ori_1_rn),
+    .phy_ori_dst_2(dst_ori_2_rn),
     .stall_DP(stall_DP),
-    .alloc_1(iq_free_ent_1),
-    .alloc_2(iq_free_ent_2),
-    .alloc_valid_1(iq_free_valid_1),
-    .alloc_valid_2(iq_free_valid_2),
-    .allocatable(allocatable_iq)
+    .rob_idx_1(rob_idx_1),
+    .rob_idx_1(rob_idx_2),
+    .rob_sorting_bit_1(rob_sorting_bit_1),
+    .rob_sorting_bit_2(rob_sorting_bit_2),
+    .wrap_around(wrap_around),
+    .allocatable(allocatable_rob),
+    .prmiss(prmiss),
+    .prmiss_rob_idx(),      // from execution
+    .violation_detected(),  // from store queue
+    .violation_rob_idx()
+    );
+
+    // check operands status and set how long latency takes for dst
+    scoreboard scd (
+    .clk(clk),
+    .reset(reset),
+    .invalid1(inv1_rn),
+    .invalid2(inv2_rn),
+    .src1_1(src1_1_rn),
+    .src2_1(src2_1_rn),
+    .src1_2(src1_2_rn),
+    .src2_2(src2_2_rn),
+    .match1_1(match1_1),
+    .match2_1(match2_1),
+    .match1_2(match1_2),
+    .match2_2(match2_2),
+    .shift_r1_1(shift_r1_1),
+    .shift_r2_1(shift_r2_1),
+    .shift_r1_2(shift_r1_2),
+    .shift_r2_2(shift_r2_2),
+    .delay1_1(delay1_1),
+    .delay2_1(delay2_1),
+    .delay1_2(delay1_2),
+    .delay2_2(delay2_2),
+    .dst_1(dst_1_rn),
+    .dst_2(dst_2_rn),
+    .wr_reg_1(wr_reg_1_rn),
+    .wr_reg_2(wr_reg_2_rn),
+    .inst_type_1(rs_ent_1_rn),
+    .inst_type_2(rs_ent_2_rn),
+    .inst_issued_1(),    // from issue queue
+    .inst_issued_2(),
+    .bc_dst_1(sel_dst_1),
+    .bc_dst_2(sel_dst_2)
     );
 
     freelist #(`IB_ENT_NUM, `IB_ENT_SEL)
@@ -726,7 +807,7 @@ module pipeline (
     .released_2(issued_imm_2),
     .released_valid_1(issued_imm_valid_1),
     .released_valid_2(issued_imm_valid_2),
-    .stall_DP(stall_DP),
+    .stall(stall_DP),
     .alloc_1(ib_free_ent_1),
     .alloc_2(ib_free_ent_2),
     .alloc_valid_1(ib_free_valid_1),
@@ -766,7 +847,7 @@ module pipeline (
     .released_2(issued_pc_2),
     .released_valid_1(issued_pc_valid_1),
     .released_valid_2(issued_pc_valid_2),
-    .stall_DP(stall_DP),
+    .stall(stall_DP),
     .alloc_1(pb_free_ent_1),
     .alloc_2(pb_free_ent_2),
     .alloc_valid_1(pb_free_valid_1),
@@ -794,6 +875,92 @@ module pipeline (
     .issued_value_1(issued_pc_value_1)
     );
 
+    // issue queue allocation
+	freelist #(`IQ_ENT_NUM, `IQ_ENT_SEL)
+	iq_freelist (
+    .clk(clk),
+    .reset(reset),
+    .invalid1(inv1_rn),
+    .invalid2(inv2_rn),
+    .prmiss(prmiss),
+    .released_1(issued_1),
+    .released_2(issued_2),
+    .released_valid_1(issued_valid_1),
+    .released_valid_2(issued_valid_2),
+    .stall(stall_DP),
+    .alloc_1(iq_free_ent_1),
+    .alloc_2(iq_free_ent_2),
+    .alloc_valid_1(iq_free_valid_1),
+    .alloc_valid_2(iq_free_valid_2),
+    .allocatable(allocatable_iq)
+    );
+
+    issue_queue issue_logic (
+    .clk(clk),
+    .reset(reset),
+    .invalid1(iq_free_valid_1),
+    .invalid2(iq_free_valid_2),
+    .iq_entry_num_1(iq_free_ent_1),
+    .iq_entry_num_2(iq_free_ent_2),
+    .port_num_1(),      // from dispatch
+    .port_num_2(),
+    .uses_rs1_1(uses_rs1_1_rn),
+    .uses_rs2_1(uses_rs2_1_rn),
+    .uses_rs1_2(uses_rs1_2_rn),
+    .uses_rs2_2(uses_rs2_2_rn),
+    .src_a_sel_1(src_a_sel_1_rn),
+    .src_b_sel_1(src_b_sel_1_rn),
+    .src_a_sel_2(src_a_sel_2_rn),
+    .src_b_sel_2(src_b_sel_2_rn),
+    .inst_type_1(rs_ent_1_rn),
+    .inst_type_2(rs_ent_2_rn),
+    .alu_op_1(alu_op_1_rn),
+    .alu_op_2(alu_op_2_rn),
+    .src1_1(src1_1_rn),
+    .src2_1(src2_1_rn),
+    .src1_2(src1_2_rn),
+    .src2_2(src2_2_rn),
+    .match1_1(match1_1),
+    .match2_1(match2_1),
+    .match1_2(match1_2),
+    .match2_2(match2_2),
+    .shift_r1_1(shift_r1_1),
+    .shift_r2_1(shift_r2_1),
+    .shift_r1_2(shift_r1_2),
+    .shift_r2_2(shift_r2_2),
+    .delay1_1(delay1_1),
+    .delay2_1(delay2_1),
+    .delay1_2(delay1_2),
+    .delay2_2(delay2_2),
+    .dst_1(dst_1_rn),
+    .dst_2(dst_2_rn),
+    .imm_ptr_1(ib_free_ent_1),
+    .imm_ptr_2(ib_free_ent_2),
+    .pc_ptr_1(pb_free_ent_1),
+    .pc_ptr_2(pb_free_ent_2),
+    .stall_DP(stall_DP),
+    .lq_idx_1(lq_idx_1),        // from load queue
+    .lq_idx_2(lq_idx_2),
+    .st_idx_1(sq_idx_1),        // from store queue
+    .st_idx_2(sq_idx_2),
+    .rob_num_1(rob_idx_1),      // from rob
+    .rob_num_2(rob_idx_2),
+    .rob_sorting_bit_1(rob_sorting_bit_1),
+    .rob_sorting_bit_2(rob_sorting_bit_2),
+    .wrap_around(wrap_around),
+    .prmiss_rob_num(),          // from execution
+    .prmiss_rob_sorting_bit(),
+    .prmiss(prmiss),
+    .sel_src1_1(sel_src1_1),    // to register file
+    .sel_src2_1(sel_src2_1),
+    .sel_src1_2(sel_src1_2),
+    .sel_src2_2(sel_src2_2),
+    .sel_dst_1(sel_dst_1),
+    .sel_dst_2(sel_dst_2),
+    .sel_alu_op_1(sel_alu_op_1),
+    .sel_alu_op_2(sel_alu_op_2),
+    .allocatable_FU()           // necessary?
+    );
 
 endmodule
 
