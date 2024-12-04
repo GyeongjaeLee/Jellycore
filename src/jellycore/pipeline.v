@@ -790,8 +790,8 @@ module pipeline (
     .wr_reg_2(wr_reg_2_rn),
     .inst_type_1(rs_ent_1_rn),
     .inst_type_2(rs_ent_2_rn),
-    .inst_issued_1(),    // from issue queue
-    .inst_issued_2(),
+    .bc_valid_1(),    // from issue queue
+    .bc_valid_2(),
     .bc_dst_1(sel_dst_1),
     .bc_dst_2(sel_dst_2)
     );
