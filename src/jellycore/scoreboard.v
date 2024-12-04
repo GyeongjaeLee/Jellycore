@@ -32,7 +32,6 @@ module scoreboard(
     input wire [`PHY_REG_SEL-1:0]   dst_2,
     input wire                      wr_reg_1,
     input wire                      wr_reg_2,
-    input wire                      WAW_valid,
     input wire [`RS_ENT_SEL-1:0]    inst_type_1,
     input wire [`RS_ENT_SEL-1:0]    inst_type_2,
     // destination tag broadcasted
@@ -74,8 +73,9 @@ module scoreboard(
     
 
     always @ (negedge clk) begin
+        // Dispatch
         // update scoreboard according to instruction type (latency)
-        if (~invalid1 && wr_reg_1 && ~WAW_valid) begin
+        if (~invalid1 && wr_reg_1) begin
             match[dst_1] <= 0;
             shift_r[dst_1] <= {`MAX_LATENCY{1'b0}};
             case(inst_type_1)
