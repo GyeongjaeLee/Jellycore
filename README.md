@@ -17,12 +17,10 @@ This guide is based on the RIDECORE simulation process.
     sudo apt update
     sudo apt install gcc-riscv64-unknown-elf
     ```
-* Icarus Verilog (iverilog) : Icarus Verilog is an open-source verilog simulator. Install it with:
-
+* Icarus Verilog (iverilog) : Icarus Verilog is an open-source Verilog HDL compiler that supports a mix of structural and behavioral constructs. Install it with:
     ```
     sudo apt install iverilog
     ```
-
 * memgen : memgen generates binary code for JELLYCORE from ELF files. The source code for memgen is located in toolchain/memgen-v0.9. Compile it using:
     ```
     cd toolchain/memgen-v0.9
