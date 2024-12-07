@@ -75,9 +75,9 @@ module reorder_buffer (
     assign wrap_2 = (tail == 1) && ~invalid1 && ~invalid2;
     
     assign rob_idx_1 = wrap_1 ? (`ROB_NUM - 1) : (tail - 1);
-    assign rob_idx_2 = wrap_1 ? (`ROB_NUM - 2) : (wrap_2 ? (`ROB_NUM - 3) : (tail - 2));
+    assign rob_idx_2 = wrap_1 ? (`ROB_NUM - 2) : (wrap_2 ? (`ROB_NUM - 1) : (tail - 2));
 
-    assign rob_sorting_bit_1 = wrap_1 ? 1'b1 : 1'b0;
+    assign rob_sorting_bit_1 = wrap_2 ? 1'b1 : 1'b0;
     assign rob_sorting_bit_2 = 1'b0;
 
     assign wrap_around = wrap_1 | wrap_2;
