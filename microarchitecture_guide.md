@@ -51,10 +51,10 @@ Dispatch allocates resources to each instruction for executing instructions out 
 Jellycore has three Issue Ports, each directing instructions to specific FUs ([Execute and Bypass](#execute-and-bypass)). After instructions are renamed, an Issue Port number is assigned to each instruction based on its type and the load on FUs. This number is allocated to the instruction's Wakeup Logic entry and is used to steer the request signal to the corresponding Select Logic associated with the assigned Issue Port.
 
 ### Scoreboard
-The Scoreboard is a table that maintains the register states. Each entry in this table represents the state of a register value, including whether it is available and how many cycles it needs to become ready. The entry is composed of M-bit (match bit), R-bit (ready bit), a shift register, and delay bits. This information is copied to the issue queue entry at dispatch, enabling each instruction in the issue queue to track the readiness of its source operands. The mechanism of the Scoreboard is described in [Issue Logic](#issue-logic-wakeupselect).
+The Scoreboard is a table that maintains the register states. Each entry in this table represents the state of a register value, including whether it is available and how many cycles it needs to become ready. The entry is composed of M-bit (match bit), R-bit (ready bit), a shift register, and delay bits. This information is copied to the issue queue entry at dispatch, enabling each instruction in the issue queue to track the readiness of its source operands. The mechanism of the Scoreboard is described in [Issue](#issue).
 
 ### Issue Queue
-The Issue Queue holds instructions waiting to be executed out of order. All renamed instructions enter the Issue Queue and wait until all of their source operands are ready and they are selected by the Select Logic. The Wakeup/Select process is described in detail in [Issue Logic](#issue-logic-wakeupselect). The available entries in the Issue Queue are also maintained by the Issue Queue Freelist.
+The Issue Queue holds instructions waiting to be executed out of order. All renamed instructions enter the Issue Queue and wait until all of their source operands are ready and they are selected by the Select Logic. The Wakeup/Select process is described in detail in [Issue](#issue). The available entries in the Issue Queue are also maintained by the Issue Queue Freelist.
 
 ### Load Queue and Store Queue
 The Load Queue and Store Queue are FIFO queues that store Load and Store instructions, respectively. At dispatch, Loads should accompany the tail of the Store Queue to forward the value of address-matched older stores in the Store Queue, and Stores should accompany the tail of the Load Queue to detect memory-order violations by searching the Load Queue. Thus, the tail information from the Load/Store Queues is allocated to the Issue Queue.
@@ -134,12 +134,10 @@ a merged store queue and store buffer (from the superfluous load queue)
 ### Store Queue and Store Buffer
 (merged store queue figure)
 
-### Recovery from Memory Order Violation
-
 ## Commit
 
 
-## Recovery from Branch Misprediction
+## Recovery
 backward-traversal recovery
 
 ## Reference
