@@ -98,34 +98,53 @@ module issue_queue(
     reg [`SRC_A_SEL_WIDTH-1:0]  src_a_sel   [`IQ_ENT_NUM-1:0];
     reg [`SRC_B_SEL_WIDTH-1:0]  src_b_sel   [`IQ_ENT_NUM-1:0];
 
+    wire [`MAX_LATENCY-1:0] shift_r1_1_use;
+    wire [`MAX_LATENCY-1:0] shift_r2_1_use;
+    wire [`MAX_LATENCY-1:0] shift_r1_2_use;
+    wire [`MAX_LATENCY-1:0] shift_r2_2_use;
+    wire [`MAX_LATENCY-1:0] delay1_1_use;
+    wire [`MAX_LATENCY-1:0] delay2_1_use;
+    wire [`MAX_LATENCY-1:0] delay1_2_use;
+    wire [`MAX_LATENCY-1:0] delay2_2_use;
+
     wire                    match1_result   [`IQ_ENT_NUM-1:0];
     wire                    match2_result   [`IQ_ENT_NUM-1:0];
-    wire                    request         [`IQ_ENT_NUM-1:0];
-    // at most 2 instruction can be selected
+    wire                    request1        [`IQ_ENT_NUM-1:0];
+    wire                    request2        [`IQ_ENT_NUM-1:0];
+    wire                    request3        [`IQ_ENT_NUM-1:0];
+    wire [`IQ_ENT_NUM-1:0]  request1_vec;
+    wire [`IQ_ENT_NUM-1:0]  request2_vec;
+    wire [`IQ_ENT_NUM-1:0]  request3_vec;
+    // at most 3 instruction can be selected
+    wire                    grant1;
+    wire                    grant2;
+    wire                    grant3;
+    wire [`IQ_ENT_SEL-1:0]  selected_ent_1;
+    wire [`IQ_ENT_SEL-1:0]  selected_ent_2;
+    wire [`IQ_ENT_SEL-1:0]  selected_ent_3;
+
     wire [`PHY_REG_SEL-1:0] broadcast_tag1;
     wire [`PHY_REG_SEL-1:0] broadcast_tag2;
+    wire [`PHY_REG_SEL-1:0] broadcast_tag3;
 
-    reg [`IQ_ENT_SEL:0]     j;
-    reg [`IQ_ENT_SEL:0]     k;
+    reg [`IQ_ENT_SEL:0]     l;
+    reg [`IQ_ENT_SEL:0]     m;
+    reg [`IQ_ENT_SEL:0]     n;
 
-    genvar i;
-    generate
-        for (i = 0; i < `IQ_ENT_NUM; i = i + 1) begin
-            // wakeup logic CAM search
-            assign match1_result[i] = valid[i]
-                && ((src1[i] == broadcast_tag1) || (src1[i] == broadcast_tag2));
-            assign match2_result[i] = valid[i]
-                && ((src2[i] == broadcast_tag1) || (src2[i] == broadcast_tag2));
-            assign request[i] = shift_r1[i][0] && shift_r2[i][0];
-            // select logic
-
-        end
-    endgenerate
+    // ignore source tag readiness when insts don't use register source operands
+    assign shift_r1_1_use = uses_rs1_1 ? shift_r1_1 : {{`MAX_LATENCY{1'b1}}};
+    assign shift_r2_1_use = uses_rs2_1 ? shift_r2_1 : {{`MAX_LATENCY{1'b1}}};
+    assign shift_r1_2_use = uses_rs1_2 ? shift_r1_2 : {{`MAX_LATENCY{1'b1}}};
+    assign shift_r2_2_use = uses_rs2_2 ? shift_r2_2 : {{`MAX_LATENCY{1'b1}}};
+    assign delay1_1_use = uses_rs1_1 ? delay1_1 : {{`MAX_LATENCY{1'b1}}};
+    assign delay2_1_use = uses_rs2_1 ? delay2_1 : {{`MAX_LATENCY{1'b1}}};
+    assign delay1_2_use = uses_rs1_2 ? delay1_2 : {{`MAX_LATENCY{1'b1}}};
+    assign delay2_2_use = uses_rs2_2 ? delay2_2 : {{`MAX_LATENCY{1'b1}}};
 
     always @ (posedge clk)  begin
         if (reset) begin
-            for (j = 0; j < `IQ_ENT_NUM; j++) begin
-                valid[j] <= 0;
+            for (l = 0; l < `IQ_ENT_NUM; l++) begin
+                valid[l] <= 0;
             end
         end else if (prmiss) begin
             // branch misprediction
@@ -138,10 +157,10 @@ module issue_queue(
                     src2[iq_entry_num_1] <= src2_1;
                     match1[iq_entry_num_1] <= match1_1;
                     match2[iq_entry_num_1] <= match2_1;
-                    shift_r1[iq_entry_num_1] <= shift_r1_1;
-                    shift_r2[iq_entry_num_1] <= shift_r2_1;
-                    delay1[iq_entry_num_1] <= delay1_1;
-                    delay2[iq_entry_num_1] <= delay2_1;
+                    shift_r1[iq_entry_num_1] <= shift_r1_1_use;
+                    shift_r2[iq_entry_num_1] <= shift_r2_1_use;
+                    delay1[iq_entry_num_1] <= delay1_1_use;
+                    delay2[iq_entry_num_1] <= delay2_1_use;
                     dst[iq_entry_num_1] <= dst_1;
                     port_num[iq_entry_num_1] <= port_num_1;
                     alu_op[iq_entry_num_1] <= alu_op_1;
@@ -160,10 +179,10 @@ module issue_queue(
                     src2[iq_entry_num_2] <= src2_1;
                     match1[iq_entry_num_2] <= match1_1;
                     match2[iq_entry_num_2] <= match2_1;
-                    shift_r1[iq_entry_num_2] <= shift_r1_1;
-                    shift_r2[iq_entry_num_2] <= shift_r2_1;
-                    delay1[iq_entry_num_2] <= delay1_1;
-                    delay2[iq_entry_num_2] <= delay2_1;
+                    shift_r1[iq_entry_num_2] <= shift_r1_1_use;
+                    shift_r2[iq_entry_num_2] <= shift_r2_1_use;
+                    delay1[iq_entry_num_2] <= delay1_1_use;
+                    delay2[iq_entry_num_2] <= delay2_1_use;
                     dst[iq_entry_num_2] <= dst_1;
                     port_num[iq_entry_num_2] <= port_num_1;
                     alu_op[iq_entry_num_2] <= alu_op_2;
@@ -179,33 +198,76 @@ module issue_queue(
             end
             // match bit set if src tags match with broadcasted dst tag through CAM search
             // if set, do arithmetic right shift shift_r, eventually set R bit
-            for (j = 0; j < `IQ_ENT_NUM; j++) begin
-                if (match1_result[j]) begin
-                    match1[j] <= 1;
-                    shift_r1[j] <= delay1[j];
+            for (m = 0; m < `IQ_ENT_NUM; m++) begin
+                if (match1_result[m]) begin
+                    match1[m] <= 1;
+                    shift_r1[m] <= delay1[m];
                 end
-                if (match2_result[j]) begin
-                    match2[j] <= 1;
-                    shift_r2[j] <= delay2[j];
+                if (match2_result[m]) begin
+                    match2[m] <= 1;
+                    shift_r2[m] <= delay2[m];
                 end
-                if (match1[j]) begin
-                    shift_r1[j] <= shift_r1[j] >>> 1;
+                if (match1[m]) begin
+                    shift_r1[m] <= shift_r1[m] >>> 1;
                 end
-                if (match2[j]) begin
-                    shift_r2[j] <= shift_r2[j] >>> 1;
+                if (match2[m]) begin
+                    shift_r2[m] <= shift_r2[m] >>> 1;
                 end
             end
-
         end
-    
     end
 
+    genvar i, j, k;
+    generate
+        // compare source tags with broadcasted dst tags (wakeup logic CAM search)
+        for (i = 0; i < `IQ_ENT_NUM; i = i + 1) begin
+            assign match1_result[i] = valid[i] && ((src1[i] == broadcast_tag1)
+                || (src1[i] == broadcast_tag2) || (src1[i] == broadcast_tag3));
+            assign match2_result[i] = valid[i] && ((src2[i] == broadcast_tag1)
+                || (src2[i] == broadcast_tag2) || (src2[i] == broadcast_tag3));
+        end
+
+        // send request signals to the corresponding select logic when ready
+        for (j = 0; j < `IQ_ENT_NUM; j = j + 1) begin
+            assign request1[j] = valid[j] && (port_num[j] == 2'b00)
+                            && (shift_r1[j][0] && shift_r2[j][0]);
+            assign request2[j] = valid[j] && (port_num[j] == 2'b01)
+                            && (shift_r1[j][0] && shift_r2[j][0]);
+            assign request3[j] = valid[j] && (port_num[j] == 2'b10)
+                            && (shift_r1[j][0] && shift_r2[j][0]);
+        end
+
+        // array to vector transition for prefix-sum select module
+        for (k = 0; k < `IQ_ENT_NUM; k = k + 1) begin
+            assign request1_vec[k] = request1[k];
+            assign request2_vec[k] = request2[k];
+            assign request3_vec[k] = request3[k];
+        end
+    endgenerate
+
+    prefix_sum prefix_sum_1(
+        .request(request1_vec),
+        .grant(grant1),
+        .selected_ent(selected_ent_1)
+    );
+
+    prefix_sum prefix_sum_2(
+        .request(request2_vec),
+        .grant(grant2),
+        .selected_ent(selected_ent_2)
+    );
+
+    prefix_sum prefix_sum_3(
+        .request(request3_vec),
+        .grant(grant3),
+        .selected_ent(selected_ent_3)
+    );
 
     always @ (posedge clk) begin
         // if rob wrap_around occurs, set all sorting bits
         if (wrap_around) begin
-            for (k = 0; k < `IQ_ENT_NUM; k++) begin
-                sorting_bit[k] = 1;
+            for (n = 0; n < `IQ_ENT_NUM; n++) begin
+                sorting_bit[n] = 1;
             end
         end
         sorting_bit[rob_num_1] = rob_sorting_bit_1;
