@@ -14,8 +14,10 @@ module freelist #(
         input wire          prmiss,
         input wire [FREE_SEL-1:0]   released_1,
         input wire [FREE_SEL-1:0]   released_2,
+        input wire [FREE_SEL-1:0]   released_3,
         input wire                  released_valid_1,
         input wire                  released_valid_2,
+        input wire                  released_valid_3,
         input wire                  stall,
         output reg [FREE_SEL-1:0]   alloc_1,
         output reg [FREE_SEL-1:0]   alloc_2,
@@ -37,7 +39,7 @@ module freelist #(
     // stop allocating new resource
     always @ (*) begin
         reqnum = {1'b0, ~invalid1} + {1'b0, ~invalid2};
-        relnum = {1'b0, released_valid_1} + {1'b0, released_valid_2};
+        relnum = {1'b0, released_valid_1} + {1'b0, released_valid_2} + {1'b0, released_valid_3};
         allocatable = (freenum - reqnum + relnum >= 0) ? 1'b1 : 1'b0;
 
         // hanlding where released resources are allocatable for the very next cycle
@@ -68,13 +70,15 @@ module freelist #(
         if(reset) begin
             freenum <= FREE_NUM;
             free_bits <= {FREE_NUM{1'b1}};
-        end else if (prmiss) begin
-            // dealing with branch misprediction
         end else begin
-            freenum <= freenum + relnum - count;
-            free_bits <= (temp_free_bits
-                         & ~({FREE_NUM{alloc_valid_1}} & (1'b1 << alloc_1))
-                         & ~({FREE_NUM{alloc_valid_2}} & (1'b1 << alloc_2)));
+            if (prmiss) begin
+                // dealing with branch misprediction
+            end else begin
+                freenum <= freenum + relnum - count;
+                free_bits <= (temp_free_bits
+                        & ~({FREE_NUM{alloc_valid_1}} & (1'b1 << alloc_1))
+                        & ~({FREE_NUM{alloc_valid_2}} & (1'b1 << alloc_2)));
+            end
         end
     end
 

@@ -142,43 +142,44 @@ module reorder_buffer (
                 valid[i] <= 0;
                 complete[i] <= 0;
             end
-        end else if (prmiss) begin
-            // recovery -> backward traversal
-            // the number of flushed instruction should be considered here.
-            count <= count - comnum;
-        end else if (~stall_DP) begin
-            // Dispatch when allocatable
-            if (reqnum[0] ^ reqnum[1]) begin
-                valid[rob_idx_1] <= 1;
-                complete[rob_idx_1] <= 0;
-                dst[rob_idx_1] <= dst_1;
-                phy_ori_dst[rob_idx_1] <= phy_ori_dst_1;
-                is_load[rob_idx_1] <= ld_valid1;
-                is_store[rob_idx_1] <= st_valid1;
-            end
-            if (reqnum == 2'b10) begin
-                valid[rob_idx_2] <= 1;
-                complete[rob_idx_2] <= 0;
-                dst[rob_idx_2] <= dst_2;
-                phy_ori_dst[rob_idx_2] <= phy_ori_dst_2;
-                is_load[rob_idx_2] <= ld_valid2;
-                is_store[rob_idx_2] <= st_valid2;
-            end
-            tail <= next_tail;
-            count <= count - comnum + reqnum;
         end else begin
-            count <= count - comnum;
-        end
+            if (prmiss) begin
+                // recovery -> backward traversal
+                // the number of flushed instruction should be considered here.
+                count <= count - comnum;
+            end else if (~stall_DP) begin
+                // Dispatch when allocatable
+                if (reqnum[0] ^ reqnum[1]) begin
+                    valid[rob_idx_1] <= 1;
+                    complete[rob_idx_1] <= 0;
+                    dst[rob_idx_1] <= dst_1;
+                    phy_ori_dst[rob_idx_1] <= phy_ori_dst_1;
+                    is_load[rob_idx_1] <= ld_valid1;
+                    is_store[rob_idx_1] <= st_valid1;
+                end
+                if (reqnum == 2'b10) begin
+                    valid[rob_idx_2] <= 1;
+                    complete[rob_idx_2] <= 0;
+                    dst[rob_idx_2] <= dst_2;
+                    phy_ori_dst[rob_idx_2] <= phy_ori_dst_2;
+                    is_load[rob_idx_2] <= ld_valid2;
+                    is_store[rob_idx_2] <= st_valid2;
+                end
+                tail <= next_tail;
+                count <= count - comnum + reqnum;
+            end else begin
+                count <= count - comnum;
+            end
 
-        // commit update status
-        if (commit_enable_1 && ~overlap_1) begin
-            valid[commit_idx_1] <= 0;
-            complete[commit_idx_1] <= 0;
+            // commit update status
+            if (commit_enable_1 && ~overlap_1) begin
+                valid[commit_idx_1] <= 0;
+                complete[commit_idx_1] <= 0;
+            end
+            if (commit_enable_2 && ~overlap_2) begin
+                valid[commit_idx_2] <= 0;
+                complete[commit_idx_2] <= 0;
+            end
         end
-        if (commit_enable_2 && ~overlap_2) begin
-            valid[commit_idx_2] <= 0;
-            complete[commit_idx_2] <= 0;
-        end
-        
     end
 endmodule

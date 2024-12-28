@@ -66,6 +66,10 @@
 `define PB_ENT_SEL 4
 `define PB_ENT_NUM 16
 
+//Predicted Address Buffer
+`define PAB_ENT_SEL 3
+`define PAB_ENT_NUM 8
+
 //STOREBUFFER
 `define STBUF_ENT_SEL 5
 `define STBUF_ENT_NUM 32

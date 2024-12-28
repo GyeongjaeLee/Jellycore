@@ -723,6 +723,7 @@ module pipeline (
 
 	end
 
+    // TODO: Edit the input/output port of the edited modules and add those newly implemented
 	// DP Stage*************************************************
 	assign stall_DP = ~allocatable_iq | ~allocatable_ib | ~allocatable_pb
 					| ~allocatable_rob| ~allocatable_lq | ~allocatable_sq;
