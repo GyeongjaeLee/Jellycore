@@ -928,7 +928,6 @@ module pipeline (
     );
 
     // TODO: predicted address buffer instantiation
-
     // TODO: complete port assignment
     issue_queue issue_logic (
     .clk(clk),
