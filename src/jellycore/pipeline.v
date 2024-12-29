@@ -250,6 +250,15 @@ module pipeline (
     wire [`MAX_LATENCY-1:0] delay1_2;
     wire [`MAX_LATENCY-1:0] delay2_2;
 
+    wire [`MAX_LATENCY-1:0] shift_r1_1_use;
+    wire [`MAX_LATENCY-1:0] shift_r2_1_use;
+    wire [`MAX_LATENCY-1:0] shift_r1_2_use;
+    wire [`MAX_LATENCY-1:0] shift_r2_2_use;
+    wire [`MAX_LATENCY-1:0] delay1_1_use;
+    wire [`MAX_LATENCY-1:0] delay2_1_use;
+    wire [`MAX_LATENCY-1:0] delay1_2_use;
+    wire [`MAX_LATENCY-1:0] delay2_2_use;
+
     // signals from issue queue freelist
 	wire [`IQ_ENT_SEL-1:0]	iq_free_ent_1;
 	wire [`IQ_ENT_SEL-1:0]	iq_free_ent_2;
@@ -593,7 +602,7 @@ module pipeline (
     renaming_logic renaming(
     .clk(clk),
     .reset(reset),
-    .uses_rs1_1(uses_rs1__id),
+    .uses_rs1_1(uses_rs1_1_id),
     .uses_rs2_1(uses_rs2_1_id),
     .uses_rs1_2(uses_rs1_2_id),
     .uses_rs2_2(uses_rs2_2_id),
@@ -742,6 +751,7 @@ module pipeline (
     assign st_valid_2 = ~inv2_rn && ((rs_ent_2_rn == `RS_ENT_LDST) && uses_rs2_2_rn);
 
 	// Dispatch Instatnces
+    // TODO: complete port assignment
     // reorder buffer allocation
     reorder_buffer rob (
     .clk(clk),
@@ -769,6 +779,7 @@ module pipeline (
     .violation_rob_idx()
     );
 
+    // TODO: complete port assignment
     // check operands status and set how long latency takes for dst
     scoreboard scd (
     .clk(clk),
@@ -803,6 +814,17 @@ module pipeline (
     .bc_dst_2(sel_dst_2)
     );
 
+    // ignore source tag states when insts don't use register source operands
+    assign shift_r1_1_use = uses_rs1_1_rn ? shift_r1_1 : {{`MAX_LATENCY{1'b1}}};
+    assign shift_r2_1_use = uses_rs2_1_rn ? shift_r2_1 : {{`MAX_LATENCY{1'b1}}};
+    assign shift_r1_2_use = uses_rs1_2_rn ? shift_r1_2 : {{`MAX_LATENCY{1'b1}}};
+    assign shift_r2_2_use = uses_rs2_2_rn ? shift_r2_2 : {{`MAX_LATENCY{1'b1}}};
+    assign delay1_1_use = uses_rs1_1_rn ? delay1_1 : {{`MAX_LATENCY{1'b1}}};
+    assign delay2_1_use = uses_rs2_1_rn ? delay2_1 : {{`MAX_LATENCY{1'b1}}};
+    assign delay1_2_use = uses_rs1_2_rn ? delay1_2 : {{`MAX_LATENCY{1'b1}}};
+    assign delay2_2_use = uses_rs2_2_rn ? delay2_2 : {{`MAX_LATENCY{1'b1}}};
+
+    // TODO: complete port assignment
     freelist #(`IB_ENT_NUM, `IB_ENT_SEL)
     ib_freelist (
     .clk(clk),
@@ -822,7 +844,7 @@ module pipeline (
     .allocatable(allocatable_ib)
     );
 
-
+    // TODO: complete port assignment
     // store immediate value 
     value_buffer #(`IB_ENT_NUM, `IB_ENT_SEL, `DATA_LEN)
     immediate_buffer (
@@ -843,6 +865,7 @@ module pipeline (
     .issued_value_1(issued_imm_value_1)
     );
 
+    // TODO: complete port assignment
     freelist #(`PB_ENT_NUM, `PB_ENT_SEL)
     pb_freelist (
     .clk(clk),
@@ -862,6 +885,7 @@ module pipeline (
     .allocatable(allocatable_pb)
     );
 
+    // TODO: complete port assignment
     // store pc value
     value_buffer #(`PB_ENT_NUM, `PB_ENT_SEL, `ADDR_LEN)
     pc_buffer (
@@ -882,6 +906,7 @@ module pipeline (
     .issued_value_1(issued_pc_value_1)
     );
 
+    // TODO: complete port assignment
     // issue queue allocation
 	freelist #(`IQ_ENT_NUM, `IQ_ENT_SEL)
 	iq_freelist (
@@ -902,6 +927,9 @@ module pipeline (
     .allocatable(allocatable_iq)
     );
 
+    // TODO: predicted address buffer instantiation
+
+    // TODO: complete port assignment
     issue_queue issue_logic (
     .clk(clk),
     .reset(reset),
@@ -911,10 +939,6 @@ module pipeline (
     .iq_entry_num_2(iq_free_ent_2),
     .port_num_1(),      // from dispatch
     .port_num_2(),
-    .uses_rs1_1(uses_rs1_1_rn),
-    .uses_rs2_1(uses_rs2_1_rn),
-    .uses_rs1_2(uses_rs1_2_rn),
-    .uses_rs2_2(uses_rs2_2_rn),
     .src_a_sel_1(src_a_sel_1_rn),
     .src_b_sel_1(src_b_sel_1_rn),
     .src_a_sel_2(src_a_sel_2_rn),
@@ -931,14 +955,14 @@ module pipeline (
     .match2_1(match2_1),
     .match1_2(match1_2),
     .match2_2(match2_2),
-    .shift_r1_1(shift_r1_1),
-    .shift_r2_1(shift_r2_1),
-    .shift_r1_2(shift_r1_2),
-    .shift_r2_2(shift_r2_2),
-    .delay1_1(delay1_1),
-    .delay2_1(delay2_1),
-    .delay1_2(delay1_2),
-    .delay2_2(delay2_2),
+    .shift_r1_1(shift_r1_1_use),
+    .shift_r2_1(shift_r2_1_use),
+    .shift_r1_2(shift_r1_2_use),
+    .shift_r2_2(shift_r2_2_use),
+    .delay1_1(delay1_1_use),
+    .delay2_1(delay2_1_use),
+    .delay1_2(delay1_2_use),
+    .delay2_2(delay2_2_use),
     .dst_1(dst_1_rn),
     .dst_2(dst_2_rn),
     .imm_ptr_1(ib_free_ent_1),

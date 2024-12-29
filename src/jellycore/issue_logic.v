@@ -13,10 +13,8 @@ module issue_queue(
     input wire [`IQ_ENT_SEL-1:0]    iq_entry_num_2,
     input wire [`PORT_SEL-1:0]      port_num_1,
     input wire [`PORT_SEL-1:0]      port_num_2,
-    input wire                      uses_rs1_1,
-    input wire                      uses_rs2_1,
-    input wire                      uses_rs1_2,
-    input wire                      uses_rs2_2,
+    input wire                      wr_reg_1,
+    input wire                      wr_reg_2,
     input wire [`SRC_A_SEL_WIDTH-1:0]  src_a_sel_1,
     input wire [`SRC_B_SEL_WIDTH-1:0]  src_b_sel_1,
     input wire [`SRC_A_SEL_WIDTH-1:0]  src_a_sel_2,
@@ -64,47 +62,57 @@ module issue_queue(
     input wire                      prmiss_rob_sorting_bit,
     input wire                      prmiss,
     // output selected instructions to execute
+    // broadcast signals for the scoreboard
+    output wire                     bc_enable1,
+    output wire                     bc_enable2,
+    output wire                     bc_enable3,
+    output wire [`PHY_REG_SEL-1:0]  bc_tag1,
+    output wire [`PHY_REG_SEL-1:0]  bc_tag2,
+    output wire [`PHY_REG_SEL-1:0]  bc_tag3,
     // Issue Port 1
-    output wire                     sel_grant_1,
-    output wire [`PHY_REG_SEL-1:0]  sel_src1_1,
-    output wire [`PHY_REG_SEL-1:0]  sel_src2_1,
-    output wire [`PHY_REG_SEL-1:0]  sel_dst_1,
-    output wire [`ALU_OP_WIDTH-1:0] sel_alu_op_1,
-    output wire                     sel_sorting_bit_1,
-    output wire [`ROB_SEL-1:0]      sel_rob_num_1,
-    output wire [`RS_ENT_SEL-1:0]   sel_inst_type_1,
-    output wire [`IB_ENT_SEL-1:0]   sel_imm_ptr_1,
-    output wire [`SRC_A_SEL_WIDTH-1:0]  sel_src_a_sel_1,
-    output wire [`SRC_A_SEL_WIDTH-1:0]  sel_src_b_sel_1,
+    output reg                      sel_grant_1,
+    output reg [`PHY_REG_SEL-1:0]   sel_src1_1,
+    output reg [`PHY_REG_SEL-1:0]   sel_src2_1,
+    output reg [`PHY_REG_SEL-1:0]   sel_dst_1,
+    output reg                      sel_wr_reg_1,
+    output reg [`ALU_OP_WIDTH-1:0]  sel_alu_op_1,
+    output reg                      sel_sorting_bit_1,
+    output reg [`ROB_SEL-1:0]       sel_rob_num_1,
+    output reg [`RS_ENT_SEL-1:0]    sel_inst_type_1,
+    output reg [`IB_ENT_SEL-1:0]    sel_imm_ptr_1,
+    output reg [`SRC_A_SEL_WIDTH-1:0]   sel_src_a_sel_1,
+    output reg [`SRC_A_SEL_WIDTH-1:0]   sel_src_b_sel_1,
     // Issue Port 2
-    output wire                     sel_grant_2,
-    output wire [`PHY_REG_SEL-1:0]  sel_src1_2,
-    output wire [`PHY_REG_SEL-1:0]  sel_src2_2,
-    output wire [`PHY_REG_SEL-1:0]  sel_dst_2,
-    output wire [`ALU_OP_WIDTH-1:0] sel_alu_op_2,
-    output wire                     sel_sorting_bit_2,
-    output wire [`ROB_SEL-1:0]      sel_rob_num_2,
-    output wire [`RS_ENT_SEL-1:0]   sel_inst_type_2,
-    output wire [`IB_ENT_SEL-1:0]   sel_imm_ptr_2,
-    output wire [`PB_ENT_SEL-1:0]   sel_pc_ptr_2,
-    output wire [`PAB_ENT_SEL-1:0]  sel_pra_ptr_2,
-    output wire [`SRC_A_SEL_WIDTH-1:0]  sel_src_a_sel_2,
-    output wire [`SRC_A_SEL_WIDTH-1:0]  sel_src_b_sel_2,
+    output reg                      sel_grant_2,
+    output reg [`PHY_REG_SEL-1:0]   sel_src1_2,
+    output reg [`PHY_REG_SEL-1:0]   sel_src2_2,
+    output reg [`PHY_REG_SEL-1:0]   sel_dst_2,
+    output reg                      sel_wr_reg_2,
+    output reg [`ALU_OP_WIDTH-1:0]  sel_alu_op_2,
+    output reg                      sel_sorting_bit_2,
+    output reg [`ROB_SEL-1:0]       sel_rob_num_2,
+    output reg [`RS_ENT_SEL-1:0]    sel_inst_type_2,
+    output reg [`IB_ENT_SEL-1:0]    sel_imm_ptr_2,
+    output reg [`PB_ENT_SEL-1:0]    sel_pc_ptr_2,
+    output reg [`PAB_ENT_SEL-1:0]   sel_pra_ptr_2,
+    output reg [`SRC_A_SEL_WIDTH-1:0]   sel_src_a_sel_2,
+    output reg [`SRC_A_SEL_WIDTH-1:0]   sel_src_b_sel_2,
     // Issue Port 3
-    output wire                     sel_grant_3,
-    output wire [`PHY_REG_SEL-1:0]  sel_src1_3,
-    output wire [`PHY_REG_SEL-1:0]  sel_src2_3,
-    output wire [`PHY_REG_SEL-1:0]  sel_dst_3,
-    output wire [`ALU_OP_WIDTH-1:0] sel_alu_op_3,
-    output wire                     sel_sorting_bit_3,
-    output wire [`ROB_SEL-1:0]      sel_rob_num_3,
-    output wire [`LQ_SEL-1:0]       sel_iq_idx_3,
-    output wire [`SQ_SEL-1:0]       sel_sq_idx_3,
-    output wire [`RS_ENT_SEL-1:0]   sel_inst_type_3,
-    output wire [`IB_ENT_SEL-1:0]   sel_imm_ptr_3,
-    output wire [`PB_ENT_SEL-1:0]   sel_pc_ptr_3,
-    output wire [`SRC_A_SEL_WIDTH-1:0]  sel_src_a_sel_3,
-    output wire [`SRC_A_SEL_WIDTH-1:0]  sel_src_b_sel_3
+    output reg                      sel_grant_3,
+    output reg [`PHY_REG_SEL-1:0]   sel_src1_3,
+    output reg [`PHY_REG_SEL-1:0]   sel_src2_3,
+    output reg [`PHY_REG_SEL-1:0]   sel_dst_3,
+    output reg                      sel_wr_reg_3,
+    output reg [`ALU_OP_WIDTH-1:0]  sel_alu_op_3,
+    output reg                      sel_sorting_bit_3,
+    output reg [`ROB_SEL-1:0]       sel_rob_num_3,
+    output reg [`LQ_SEL-1:0]        sel_iq_idx_3,
+    output reg [`SQ_SEL-1:0]        sel_sq_idx_3,
+    output reg [`RS_ENT_SEL-1:0]    sel_inst_type_3,
+    output reg [`IB_ENT_SEL-1:0]    sel_imm_ptr_3,
+    output reg [`PB_ENT_SEL-1:0]    sel_pc_ptr_3,
+    output reg [`SRC_A_SEL_WIDTH-1:0]   sel_src_a_sel_3,
+    output reg [`SRC_A_SEL_WIDTH-1:0]   sel_src_b_sel_3
     );
 
     // wakeup logic entry
@@ -121,6 +129,7 @@ module issue_queue(
     reg [`PORT_SEL-1:0]         port_num    [`IQ_ENT_NUM-1:0];
 
     // payload RAM
+    reg                         wr_reg      [`IQ_ENT_NUM-1:0];
     reg [`ALU_OP_WIDTH-1:0]     alu_op      [`IQ_ENT_NUM-1:0];
     reg                         sorting_bit [`IQ_ENT_NUM-1:0];
     reg [`ROB_SEL-1:0]          rob_num     [`IQ_ENT_NUM-1:0];
@@ -132,28 +141,11 @@ module issue_queue(
     reg [`PAB_ENT_SEL-1:0]      pra_ptr     [`IQ_ENT_NUM-1:0];
     reg [`SRC_A_SEL_WIDTH-1:0]  src_a_sel   [`IQ_ENT_NUM-1:0];
     reg [`SRC_B_SEL_WIDTH-1:0]  src_b_sel   [`IQ_ENT_NUM-1:0];
-
-    wire [`MAX_LATENCY-1:0] shift_r1_1_use;
-    wire [`MAX_LATENCY-1:0] shift_r2_1_use;
-    wire [`MAX_LATENCY-1:0] shift_r1_2_use;
-    wire [`MAX_LATENCY-1:0] shift_r2_2_use;
-    wire [`MAX_LATENCY-1:0] delay1_1_use;
-    wire [`MAX_LATENCY-1:0] delay2_1_use;
-    wire [`MAX_LATENCY-1:0] delay1_2_use;
-    wire [`MAX_LATENCY-1:0] delay2_2_use;
     
     wire                    reallocated_1;
     wire                    reallocated_2;
     wire                    reallocated_3;
 
-    wire                    match1_result   [`IQ_ENT_NUM-1:0];
-    wire                    match2_result   [`IQ_ENT_NUM-1:0];
-    wire                    broadcast_enable1;
-    wire                    broadcast_enable2;
-    wire                    broadcast_enable3;
-    wire [`PHY_REG_SEL-1:0] broadcast_tag1;
-    wire [`PHY_REG_SEL-1:0] broadcast_tag2;
-    wire [`PHY_REG_SEL-1:0] broadcast_tag3;
     wire                    request1        [`IQ_ENT_NUM-1:0];
     wire                    request2        [`IQ_ENT_NUM-1:0];
     wire                    request3        [`IQ_ENT_NUM-1:0];
@@ -161,6 +153,22 @@ module issue_queue(
     reg [`IQ_ENT_NUM-1:0]   request2_vec;
     reg [`IQ_ENT_NUM-1:0]   request3_vec;
 
+    wire                    broadcast_enable1;
+    wire                    broadcast_enable2;
+    wire                    broadcast_enable3;
+    wire [`PHY_REG_SEL-1:0] broadcast_tag1;
+    wire [`PHY_REG_SEL-1:0] broadcast_tag2;
+    wire [`PHY_REG_SEL-1:0] broadcast_tag3;
+
+    wire                    src1_match1;
+    wire                    src1_match2;
+    wire                    src1_match3;
+    wire                    src2_match1;
+    wire                    src2_match2;
+    wire                    src2_match3;
+    wire                    match1_result   [`IQ_ENT_NUM-1:0];
+    wire                    match2_result   [`IQ_ENT_NUM-1:0];
+    
     // at most 3 instruction can be selected
     wire                    grant1;
     wire                    grant2;
@@ -173,16 +181,6 @@ module issue_queue(
     reg [`IQ_ENT_SEL:0]     l;
     reg [`IQ_ENT_SEL:0]     m;
     reg [`IQ_ENT_SEL:0]     n;
-
-    // ignore source tag readiness when insts don't use register source operands
-    assign shift_r1_1_use = uses_rs1_1 ? shift_r1_1 : {{`MAX_LATENCY{1'b1}}};
-    assign shift_r2_1_use = uses_rs2_1 ? shift_r2_1 : {{`MAX_LATENCY{1'b1}}};
-    assign shift_r1_2_use = uses_rs1_2 ? shift_r1_2 : {{`MAX_LATENCY{1'b1}}};
-    assign shift_r2_2_use = uses_rs2_2 ? shift_r2_2 : {{`MAX_LATENCY{1'b1}}};
-    assign delay1_1_use = uses_rs1_1 ? delay1_1 : {{`MAX_LATENCY{1'b1}}};
-    assign delay2_1_use = uses_rs2_1 ? delay2_1 : {{`MAX_LATENCY{1'b1}}};
-    assign delay1_2_use = uses_rs1_2 ? delay1_2 : {{`MAX_LATENCY{1'b1}}};
-    assign delay2_2_use = uses_rs2_2 ? delay2_2 : {{`MAX_LATENCY{1'b1}}};
 
     assign reallocated_1 = (~invalid1 && (sel_ent_1 == iq_entry_num_1))
                         || (~invalid2 && (sel_ent_1 == iq_entry_num_2));
@@ -208,12 +206,13 @@ module issue_queue(
                         src2[iq_entry_num_1] <= src2_1;
                         match1[iq_entry_num_1] <= match1_1;
                         match2[iq_entry_num_1] <= match2_1;
-                        shift_r1[iq_entry_num_1] <= shift_r1_1_use;
-                        shift_r2[iq_entry_num_1] <= shift_r2_1_use;
-                        delay1[iq_entry_num_1] <= delay1_1_use;
-                        delay2[iq_entry_num_1] <= delay2_1_use;
+                        shift_r1[iq_entry_num_1] <= shift_r1_1;
+                        shift_r2[iq_entry_num_1] <= shift_r2_1;
+                        delay1[iq_entry_num_1] <= delay1_1;
+                        delay2[iq_entry_num_1] <= delay2_1;
                         dst[iq_entry_num_1] <= dst_1;
                         port_num[iq_entry_num_1] <= port_num_1;
+                        wr_reg[iq_entry_num_1] <= wr_reg_1;
                         alu_op[iq_entry_num_1] <= alu_op_1;
                         rob_num[iq_entry_num_1] <= rob_num_1;
                         lq_idx[iq_entry_num_1] <= lq_idx_1;
@@ -231,12 +230,13 @@ module issue_queue(
                         src2[iq_entry_num_2] <= src2_1;
                         match1[iq_entry_num_2] <= match1_1;
                         match2[iq_entry_num_2] <= match2_1;
-                        shift_r1[iq_entry_num_2] <= shift_r1_1_use;
-                        shift_r2[iq_entry_num_2] <= shift_r2_1_use;
-                        delay1[iq_entry_num_2] <= delay1_1_use;
-                        delay2[iq_entry_num_2] <= delay2_1_use;
+                        shift_r1[iq_entry_num_2] <= shift_r1_1;
+                        shift_r2[iq_entry_num_2] <= shift_r2_1;
+                        delay1[iq_entry_num_2] <= delay1_1;
+                        delay2[iq_entry_num_2] <= delay2_1;
                         dst[iq_entry_num_2] <= dst_1;
                         port_num[iq_entry_num_2] <= port_num_1;
+                        wr_reg[iq_entry_num_2] <= wr_reg_2;
                         alu_op[iq_entry_num_2] <= alu_op_2;
                         rob_num[iq_entry_num_2] <= rob_num_2;
                         lq_idx[iq_entry_num_2] <= lq_idx_2;
@@ -251,7 +251,7 @@ module issue_queue(
                 end
             end
 
-            // match bit set if src tags match with broadcasted dst tag through CAM search
+            // match bit is set if src tags match with broadcasted dst tag through CAM search
             // if set, do arithmetic right shift shift_r, eventually set R bit
             for (m = 0; m < `IQ_ENT_NUM; m++) begin
                 if (match1_result[m]) begin
@@ -298,15 +298,6 @@ module issue_queue(
     // Wakeup && Select Logic
     genvar i, j;
     generate
-        // TODO: implement match sets when broadcast enabled and broadcasted tag matches
-        // compare source tags with broadcasted dst tags (wakeup logic CAM search)
-        for (i = 0; i < `IQ_ENT_NUM; i = i + 1) begin
-            assign match1_result[i] = valid[i] && ((src1[i] == broadcast_tag1)
-                || (src1[i] == broadcast_tag2) || (src1[i] == broadcast_tag3));
-            assign match2_result[i] = valid[i] && ((src2[i] == broadcast_tag1)
-                || (src2[i] == broadcast_tag2) || (src2[i] == broadcast_tag3));
-        end
-
         // send request signals to the corresponding select logic when ready
         for (j = 0; j < `IQ_ENT_NUM; j = j + 1) begin
             assign request1[j] = valid[j] && (port_num[j] == 2'b00)
@@ -320,7 +311,7 @@ module issue_queue(
 
     // array to vector transition for prefix-sum select module
     // this ensures select logic to synchronize
-    always @ (posedge clk) begin
+    always @ (negedge clk) begin
         for (k = 0; k < `IQ_ENT_NUM; k++) begin
             request1_vec[k] <= request1[k];
             request2_vec[k] <= request2[k];
@@ -346,51 +337,83 @@ module issue_queue(
         .grant(grant3),
         .selected_ent(sel_ent_3)
     );
+    
+    assign broadcast_enable1 = grant1 && sel_wr_reg_1;
+    assign broadcast_enable2 = grant2 && sel_wr_reg_2;
+    assign broadcast_enable3 = grant3 && sel_wr_reg_3;
 
-    // TODO: implement match sets when broadcast enabled and broadcasted tag matches
+    assign broadcast_tag1 = dst[sel_ent_1];
+    assign broadcast_tag2 = dst[sel_ent_2];
+    assign broadcast_tag3 = dst[sel_ent_3];
 
-    // Issue Port 1
-    assign sel_grant_1 = grant1;
-    assign sel_src1_1 = src1[sel_ent_1];
-    assign sel_src2_1 = src2[sel_ent_1];
-    assign sel_dst_1 = dst[sel_ent_1];
-    assign sel_alu_op_1 = alu_op[sel_ent_1];
-    assign sel_sorting_bit_1 = sorting_bit[sel_ent_1];
-    assign sel_rob_num_1 = rob_num[sel_ent_1];
-    assign sel_inst_type_1 = inst_type[sel_ent_1];
-    assign sel_imm_ptr_1 = imm_ptr[sel_ent_1];
-    assign sel_src_a_sel_1 = src_a_sel[sel_ent_1];
-    assign sel_src_b_sel_1 = src_b_sel[sel_ent_1];
-    // Issue Port 2
-    assign sel_grant_2 = grant2;
-    assign sel_src1_2 = src1[sel_ent_2];
-    assign sel_src2_2 = src2[sel_ent_2];
-    assign sel_dst_2 = dst[sel_ent_2];
-    assign sel_alu_op_2 = alu_op[sel_ent_2];
-    assign sel_sorting_bit_2 = sorting_bit[sel_ent_2];
-    assign sel_rob_num_2 = rob_num[sel_ent_2];
-    assign sel_inst_type_2 = inst_type[sel_ent_2];
-    assign sel_imm_ptr_2 = imm_ptr[sel_ent_2];
-    assign sel_pc_ptr_2 = pc_ptr[sel_ent_2];
-    assign sel_pra_ptr_2 = pra_ptr[sel_ent_2];
-    assign sel_src_a_sel_2 = src_a_sel[sel_ent_2];
-    assign sel_src_b_sel_2 = src_b_sel[sel_ent_2];
-    // Issue Port 3
-    assign sel_grant_3 = grant3;
-    assign sel_src1_3 = src1[sel_ent_3];
-    assign sel_src2_3 = src2[sel_ent_3];
-    assign sel_dst_3 = dst[sel_ent_3];
-    assign sel_alu_op_3 = alu_op[sel_ent_3];
-    assign sel_sorting_bit_3 = sorting_bit[sel_ent_3];
-    assign sel_rob_num_3 = rob_num[sel_ent_3];
-    assign sel_iq_idx_3 = lq_idx[sel_ent_3];
-    assign sel_sq_idx_3 = sq_idx[sel_ent_3];
-    assign sel_inst_type_3 = inst_type[sel_ent_3];
-    assign sel_imm_ptr_3 = imm_ptr[sel_ent_3];
-    assign sel_pc_ptr_3 = pc_ptr[sel_ent_3];
-    assign sel_src_a_sel_3 = src_a_sel[sel_ent_3];
-    assign sel_src_b_sel_3 = src_b_sel[sel_ent_3];
+    generate
+        // compare source tags with broadcasted dst tags (wakeup logic CAM search)
+        for (i = 0; i < `IQ_ENT_NUM; i = i + 1) begin
+            assign src1_match1 = broadcast_enable1 && (src1[i] == broadcast_tag1);
+            assign src1_match2 = broadcast_enable2 && (src1[i] == broadcast_tag2);
+            assign src1_match3 = broadcast_enable3 && (src1[i] == broadcast_tag3);
+            assign match1_result[i] = valid[i] && (src1_match1 || src1_match2 || src1_match3);
 
+            assign src2_match1 = broadcast_enable1 && (src2[i] == broadcast_tag1);
+            assign src2_match2 = broadcast_enable2 && (src2[i] == broadcast_tag2);
+            assign src2_match3 = broadcast_enable3 && (src2[i] == broadcast_tag3);
+            assign match2_result[i] = valid[i] && (src2_match1 || src2_match2 || src2_match3);
+        end
+    endgenerate
 
+    // broadcast to scoreborad
+    assign bc_enable1 = broadcast_enable1;
+    assign bc_enable2 = broadcast_enable2;
+    assign bc_enable3 = broadcast_enable3;
+    assign bc_tag1 = broadcast_tag1;
+    assign bc_tag2 = broadcast_tag2;
+    assign bc_tag3 = broadcast_tag3;
 
+    // read information from Payload RAM
+    always @ (posedge clk) begin
+        // Issue Port 1
+        sel_grant_1 = grant1;
+        sel_src1_1 = src1[sel_ent_1];
+        sel_src2_1 = src2[sel_ent_1];
+        sel_dst_1 = dst[sel_ent_1];
+        sel_wr_reg_1 = wr_reg[sel_ent_1];
+        sel_alu_op_1 = alu_op[sel_ent_1];
+        sel_sorting_bit_1 = sorting_bit[sel_ent_1];
+        sel_rob_num_1 = rob_num[sel_ent_1];
+        sel_inst_type_1 = inst_type[sel_ent_1];
+        sel_imm_ptr_1 = imm_ptr[sel_ent_1];
+        sel_src_a_sel_1 = src_a_sel[sel_ent_1];
+        sel_src_b_sel_1 = src_b_sel[sel_ent_1];
+        // Issue Port 2
+        sel_grant_2 = grant2;
+        sel_src1_2 = src1[sel_ent_2];
+        sel_src2_2 = src2[sel_ent_2];
+        sel_dst_2 = dst[sel_ent_2];
+        sel_wr_reg_2 = wr_reg[sel_ent_2];
+        sel_alu_op_2 = alu_op[sel_ent_2];
+        sel_sorting_bit_2 = sorting_bit[sel_ent_2];
+        sel_rob_num_2 = rob_num[sel_ent_2];
+        sel_inst_type_2 = inst_type[sel_ent_2];
+        sel_imm_ptr_2 = imm_ptr[sel_ent_2];
+        sel_pc_ptr_2 = pc_ptr[sel_ent_2];
+        sel_pra_ptr_2 = pra_ptr[sel_ent_2];
+        sel_src_a_sel_2 = src_a_sel[sel_ent_2];
+        sel_src_b_sel_2 = src_b_sel[sel_ent_2];
+        // Issue Port 3
+        sel_grant_3 = grant3;
+        sel_src1_3 = src1[sel_ent_3];
+        sel_src2_3 = src2[sel_ent_3];
+        sel_dst_3 = dst[sel_ent_3];
+        sel_wr_reg_3 = wr_reg[sel_ent_3];
+        sel_alu_op_3 = alu_op[sel_ent_3];
+        sel_sorting_bit_3 = sorting_bit[sel_ent_3];
+        sel_rob_num_3 = rob_num[sel_ent_3];
+        sel_iq_idx_3 = lq_idx[sel_ent_3];
+        sel_sq_idx_3 = sq_idx[sel_ent_3];
+        sel_inst_type_3 = inst_type[sel_ent_3];
+        sel_imm_ptr_3 = imm_ptr[sel_ent_3];
+        sel_pc_ptr_3 = pc_ptr[sel_ent_3];
+        sel_src_a_sel_3 = src_a_sel[sel_ent_3];
+        sel_src_b_sel_3 = src_b_sel[sel_ent_3];
+    end
 endmodule
