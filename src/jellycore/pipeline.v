@@ -193,6 +193,7 @@ module pipeline (
     reg 				md_req_in_1_signed_1_rn;
     reg 				md_req_in_2_signed_1_rn;
 	reg [`MD_OUT_SEL_WIDTH-1:0] 	md_req_out_sel_1_rn;
+
 	// Decode Info2
     reg [`SRC_A_SEL_WIDTH-1:0] 	src_a_sel_2_rn;
     reg [`SRC_B_SEL_WIDTH-1:0] 	src_b_sel_2_rn;
@@ -204,6 +205,7 @@ module pipeline (
     reg 				md_req_in_1_signed_2_rn;
     reg 				md_req_in_2_signed_2_rn;
     reg [`MD_OUT_SEL_WIDTH-1:0] 	md_req_out_sel_2_rn;
+
 	// Rename Logic Info
 	reg [`PHY_REG_SEL-1:0] 		src1_1_rn;
     reg [`PHY_REG_SEL-1:0] 		src2_1_rn;
@@ -213,21 +215,39 @@ module pipeline (
 	reg [`PHY_REG_SEL-1:0] 		dst_2_rn;
     reg [`PHY_REG_SEL-1:0]      dst_ori_1_rn;
     reg [`PHY_REG_SEL-1:0]      dst_ori_2_rn;
+
     // Immediate Gerneration Info
     reg [`DATA_LEN-1:0]         imm_1_rn;
     reg [`DATA_LEN-1:0]         imm_2_rn;
+    
 	// Addional Info
     reg [`ADDR_LEN-1:0]         pc_rn;
 	reg 						inv1_rn;
 	reg							inv2_rn;
+    reg [`ADDR_LEN-1:0] 		praddr1_rn;
+    reg [`ADDR_LEN-1:0] 		praddr2_rn;
 
 
 	// DISPATCH
+    // whether the instruction requires value buffer
+    wire                    imm_valid_1;
+    wire                    imm_valid_2;
+    wire                    pc_valid_1;
+    wire                    pc_valid_2;
+    wire                    pra_valid_1;
+    wire                    pra_valid_2;
+
+    // whether the instruction is load or store
+    wire                    ld_valid_1;
+    wire                    ld_valid_2;
+    wire                    st_valid_1;
+    wire                    st_valid_2;
+
     // signals from reorder buffer
-    wire [`ROB_SEL-1:0]     rob_idx_1;
-    wire [`ROB_SEL-1:0]     rob_idx_2;
-    wire                    rob_sorting_bit_1;
-    wire                    rob_sorting_bit_2;
+    wire [`ROB_SEL-1:0]     rob_num_1;
+    wire [`ROB_SEL-1:0]     rob_num_2;
+    wire                    sorting_bit_1;
+    wire                    sorting_bit_2;
     wire                    wrap_around;
 
     // signals from load/store queue
@@ -260,70 +280,115 @@ module pipeline (
     wire [`MAX_LATENCY-1:0] delay2_2_use;
 
     // signals from issue queue freelist
-	wire [`IQ_ENT_SEL-1:0]	iq_free_ent_1;
-	wire [`IQ_ENT_SEL-1:0]	iq_free_ent_2;
-	wire 					iq_free_valid_1;
-	wire 					iq_free_valid_2;
-    wire [`PHY_REG_SEL-1:0] sel_src1_1;
-    wire [`PHY_REG_SEL-1:0] sel_src2_1;
-    wire [`PHY_REG_SEL-1:0] sel_src1_2;
-    wire [`PHY_REG_SEL-1:0] sel_src2_2;
-    wire [`PHY_REG_SEL-1:0] sel_dst_1;
-    wire [`PHY_REG_SEL-1:0] sel_dst_2;
-    wire [`ALU_OP_WIDTH-1:0]    sel_alu_op_1;
-    wire [`ALU_OP_WIDTH-1:0]    sel_alu_op_2;
+    wire 					iq_ent_valid_1;
+	wire 					iq_ent_valid_2;
+	wire [`IQ_ENT_SEL-1:0]	iq_ptr_1;
+	wire [`IQ_ENT_SEL-1:0]	iq_ptr_2;
 
     // signals from immediate buffer freelist
-    wire                    imm_valid_1;
-    wire                    imm_valid_2;
-    wire [`IB_ENT_SEL-1:0]  ib_free_ent_1;
-    wire [`IB_ENT_SEL-1:0]  ib_free_ent_2;
-    wire 					ib_free_valid_1;
-	wire 					ib_free_valid_2;
+    wire 					imm_ptr_valid_1;
+	wire 					imm_ptr_valid_2;
+    wire [`IB_ENT_SEL-1:0]  imm_ptr_1;
+    wire [`IB_ENT_SEL-1:0]  imm_ptr_2;
 
     // signals from PC buffer freelist
-    wire                    pc_valid_1;
-    wire                    pc_valid_2;
-    wire [`PB_ENT_SEL-1:0]  pb_free_ent_1;
-    wire [`PB_ENT_SEL-1:0]  pb_free_ent_2;
-    wire                    pb_free_valid_1;
-    wire                    pb_free_valid_2;
-
-    // signals for LQ and SQ
-    wire                    ld_valid_1;
-    wire                    ld_valid_2;
-    wire                    st_valid_1;
-    wire                    st_valid_2;
+    wire                    pc_ptr_valid_1;
+    wire                    pc_ptr_valid_2;
+    wire [`PB_ENT_SEL-1:0]  pc_ptr_1;
+    wire [`PB_ENT_SEL-1:0]  pc_ptr_2;
     
+    // signlas from Predicted Address buffer freelist
+    wire                    pra_ptr_valid_1;
+    wire                    pra_ptr_valid_2;
+    wire [`PAB_ENT_SEL-1:0] pra_ptr_1;
+    wire [`PAB_ENT_SEL-1:0] pra_ptr_2;
+
+    wire					allocatable_rob;
 	wire					allocatable_iq;
 	wire					allocatable_ib;
-	wire					allocatable_rob;
+    wire                    allocatable_pb;
+	wire                    allocatable_pab;
 	wire					allocatable_lq;
 	wire					allocatable_sq;
-    wire                    allocatable_pb;
+    
 
 	// ISSUE
-    // selected instructions
-	wire [`IQ_ENT_SEL-1:0]	issued_1;
-	wire [`IQ_ENT_SEL-1:0]	issued_2;
-	wire					issued_valid_1;
-	wire					issued_valid_2;
+    // tag broadcast 
+    wire                    broadcast_enable1;
+    wire                    broadcast_enable2;
+    wire                    broadcast_enable3;
+    wire [`PHY_REG_SEL-1:0] broadcast_tag1;
+    wire [`PHY_REG_SEL-1:0] broadcast_tag2;
+    wire [`PHY_REG_SEL-1:0] broadcast_tag3;
 
-    // if immediate instruction is issued
-    wire [`IB_ENT_SEL-1:0]	issued_imm_1;
-	wire [`IB_ENT_SEL-1:0]	issued_imm_2;
-	wire					issued_imm_valid_1;
-	wire					issued_imm_valid_2;
-    wire [`DATA_LEN-1:0]    issued_imm_value_1;
-    wire [`DATA_LEN-1:0]    issued_imm_value_2;
+    // selected instructions from issue_logic
+    // Issue Port 1
+	wire					    sel_grant_1;
+    wire [`IQ_ENT_SEL-1:0]	    sel_ent_1;
+    wire [`PHY_REG_SEL-1:0]     sel_src1_1;
+    wire [`PHY_REG_SEL-1:0]     sel_src2_1;
+    wire [`PHY_REG_SEL-1:0]     sel_dst_1;
+    wire                        sel_wr_reg_1;
+    wire [`ALU_OP_WIDTH-1:0]    sel_alu_op_1;
+    wire                        sel_sorting_bit_1;
+    wire [`ROB_SEL-1:0]         sel_rob_num_1;
+    wire [`RS_ENT_SEL-1:0]      sel_inst_type_1;
+    wire [`IB_ENT_SEL-1:0]	    sel_imm_ptr_1;
+    wire [`SRC_A_SEL_WIDTH-1:0] sel_src_a_sel_1;
+    wire [`SRC_B_SEL_WIDTH-1:0] sel_src_b_sel_1;
 
-    // if PC-relative instruction is issued
-    wire [`PB_ENT_SEL-1:0]  issued_pc_1;
-    wire [`PB_ENT_SEL-1:0]  issued_pc_2;
-    wire                    issued_pc_valid_1;
-    wire                    issued_pc_valid_2;
-    wire [`ADDR_LEN-1:0]    issued_pc_value_1;
-    wire [`ADDR_LEN-1:0]    issued_pc_value_2;
+    // Issue Port 2
+	wire					    sel_grant_2;
+    wire [`IQ_ENT_SEL-1:0]	    sel_ent_2;
+    wire [`PHY_REG_SEL-1:0]     sel_src1_2;
+    wire [`PHY_REG_SEL-1:0]     sel_src2_2;
+    wire [`PHY_REG_SEL-1:0]     sel_dst_2;
+    wire                        sel_wr_reg_2;
+    wire [`ALU_OP_WIDTH-1:0]    sel_alu_op_2;
+    wire                        sel_sorting_bit_2;
+    wire [`ROB_SEL-1:0]         sel_rob_num_2;
+    wire [`RS_ENT_SEL-1:0]      sel_inst_type_2;
+    wire [`IB_ENT_SEL-1:0]	    sel_imm_ptr_2;
+    wire [`PB_ENT_SEL-1:0]      sel_pc_ptr_2;
+    wire [`PAB_ENT_SEL-1:0]     sel_pra_ptr_2;
+    wire [`SRC_A_SEL_WIDTH-1:0] sel_src_a_sel_2;
+    wire [`SRC_B_SEL_WIDTH-1:0] sel_src_b_sel_2;
+
+    // Issue Port 2
+	wire					    sel_grant_3;
+    wire [`IQ_ENT_SEL-1:0]	    sel_ent_3;
+    wire [`PHY_REG_SEL-1:0]     sel_src1_3;
+    wire [`PHY_REG_SEL-1:0]     sel_src2_3;
+    wire [`PHY_REG_SEL-1:0]     sel_dst_3;
+    wire                        sel_wr_reg_3;
+    wire [`ALU_OP_WIDTH-1:0]    sel_alu_op_3;
+    wire                        sel_sorting_bit_3;
+    wire [`ROB_SEL-1:0]         sel_rob_num_3;
+    wire [`LQ_SEL-1:0]          sel_lq_idx_3;
+    wire [`SQ_SEL-1:0]          sel_sq_idx_3;
+    wire [`RS_ENT_SEL-1:0]      sel_inst_type_3;
+    wire [`IB_ENT_SEL-1:0]	    sel_imm_ptr_3;
+    wire [`PB_ENT_SEL-1:0]      sel_pc_ptr_3;
+    wire [`SRC_A_SEL_WIDTH-1:0] sel_src_a_sel_3;
+    wire [`SRC_B_SEL_WIDTH-1:0] sel_src_b_sel_3;
+
+    // if an instruction using immediate value is issued
+    wire					sel_imm_valid_1;
+	wire					sel_imm_valid_2;
+    wire					sel_imm_valid_3;
+    wire [`DATA_LEN-1:0]    sel_imm_value_1;
+    wire [`DATA_LEN-1:0]    sel_imm_value_2;
+    wire [`DATA_LEN-1:0]    sel_imm_value_3;
+
+    // if an instruction using PC-relative calculation is isseud
+    wire                    sel_pc_valid_2;
+    wire                    sel_pc_valid_3;
+    wire [`ADDR_LEN-1:0]    sel_pc_value_2;
+    wire [`ADDR_LEN-1:0]    sel_pc_value_3;
+
+    // if Brnach/Jal/Jalr instruction is issued
+    wire                    sel_pra_valid_2;
+    wire [`ADDR_LEN-1:0]    sel_pra_value_2;
 
 
     // IF Stage********************************************************
@@ -562,19 +627,21 @@ module pipeline (
 	phy_tag_freelist(
     .clk(clk),
     .reset(reset),
-    .invalid1(~inv1_id && wr_reg_1_id),
-	.invalid2(~inv2_id && wr_reg_2_id),
+    .valid_1(~inv1_id && wr_reg_1_id),
+	.valid_2(~inv2_id && wr_reg_2_id),
     .prmiss(prmiss),
-    .released_1(com_phy_tag_1),
-    .released_2(com_phy_tag_2),
-    .released_valid_1(com_valid_1),
-    .released_valid_2(com_valid_2),
     .stall(stall_RN),
     .phy_dst_1(phy_dst_1_from_freelist),
     .phy_dst_2(phy_dst_2_from_freelist),
     .phy_dst_valid_1(phy_dst_valid_1),
     .phy_dst_valid_2(phy_dst_valid_2),
-    .allocatable(allocatable_phytag)
+    .allocatable(allocatable_phytag),
+    .released_1(com_phy_tag_1),
+    .released_2(com_phy_tag_2),
+    .released_3({`PHY_REG_SEL{1'b0}}),
+    .released_valid_1(com_valid_1),
+    .released_valid_2(com_valid_2),
+    .released_valid_3(0)
     );
     
     frontend_RAT frontend_rat(
@@ -689,6 +756,8 @@ module pipeline (
 			dst_2_rn						<= 0;
 			inv1_rn							<= 0;
 			inv2_rn							<= 0;
+            praddr1_rn                      <= 0;
+            praddr2_rn                      <= 0;
             isbranch1_rn                    <= 0;
             isbranch2_rn                    <= 0;
 		end else if (~stall_RN) begin
@@ -726,6 +795,8 @@ module pipeline (
             dst_ori_2_rn                    <= phy_ori_dst_2;
 			inv1_rn							<= inv1_id;
 			inv2_rn							<= inv2_id;
+            praddr1_rn                      <= praddr1_id;
+            praddr2_rn                      <= praddr2_id;
             isbranch1_rn                    <= isbranch1_id;
             isbranch2_rn                    <= isbranch2_id;
 		end
@@ -735,42 +806,51 @@ module pipeline (
     // TODO: Edit the input/output port of the edited modules and add those newly implemented
 	// DP Stage*************************************************
 	assign stall_DP = ~allocatable_iq | ~allocatable_ib | ~allocatable_pb
-					| ~allocatable_rob| ~allocatable_lq | ~allocatable_sq;
+                    | ~allocatable_pab | ~allocatable_rob | ~allocatable_lq
+                    | ~allocatable_sq;
 	assign kill_DP = prmiss;
 
-    // isbranch already includes JAL and JALR
-    assign imm_valid_1 = ~inv1_rn && (isbranch1_rn || (src_b_sel_1_rn == `SRC_B_IMM));
-    assign imm_valid_2 = ~inv2_rn && (isbranch2_rn || (src_b_sel_2_rn == `SRC_B_IMM));
-    assign pc_valid_1 = ~inv1_rn && (isbranch1_rn || (src_a_sel_1_rn == `SRC_A_PC));
-    assign pc_valid_2 = ~inv2_rn && (isbranch2_rn || (src_a_sel_2_rn == `SRC_A_PC));
+    // whether the renamed instruction uses value buffers
+    assign imm_valid_1 = ~inv1_rn && ((src_b_sel_1_rn == `SRC_B_IMM)
+                                 || (rs_ent_1_rn == `RS_ENT_BRANCH)
+                                 || (rs_ent_1_rn == `RS_ENT_LDST));
+    assign imm_valid_2 = ~inv2_rn && ((src_b_sel_2_rn == `SRC_B_IMM)
+                                 || (rs_ent_2_rn == `RS_ENT_BRANCH)
+                                 || (rs_ent_2_rn == `RS_ENT_LDST));
+    assign pc_valid_1 = ~inv1_rn && ((rs_ent_1_rn == `RS_ENT_BRANCH)
+                                 || (rs_ent_1_rn == `RS_ENT_LDST));
+    assign pc_valid_2 = ~inv2_rn && ((rs_ent_2_rn == `RS_ENT_BRANCH)
+                                 || (rs_ent_2_rn == `RS_ENT_LDST));
+    assign pra_valid_1 = ~inv1_rn && (rs_ent_1_rn == `RS_ENT_BRANCH);
+    assign pra_valid_2 = ~inv2_rn && (rs_ent_2_rn == `RS_ENT_BRANCH);
 
-    // whether instruction is load/store
+    // whether the renamed instruction is load/store
     assign ld_valid_1 = ~inv1_rn && ((rs_ent_1_rn == `RS_ENT_LDST) && wr_reg_1_rn);
     assign ld_valid_2 = ~inv2_rn && ((rs_ent_2_rn == `RS_ENT_LDST) && wr_reg_2_rn);
     assign st_valid_1 = ~inv1_rn && ((rs_ent_1_rn == `RS_ENT_LDST) && uses_rs2_1_rn);
     assign st_valid_2 = ~inv2_rn && ((rs_ent_2_rn == `RS_ENT_LDST) && uses_rs2_2_rn);
 
 	// Dispatch Instatnces
-    // TODO: complete port assignment
+    // TODO: complete execution write-back
     // reorder buffer allocation
     reorder_buffer rob (
     .clk(clk),
     .reset(reset),
-    .invalid1(inv1_rn),
-    .invalid2(inv2_rn),
+    .valid_1(~inv1_rn),
+    .valid_2(~inv2_rn),
     .ld_vaild1(ld_valid_1),
-    .ld_valid2(ld_valid_2),
-    .st_valid1(st_valid_1),
-    .st_valid2(st_valid_2),
+    .ld_valid_2(ld_valid_2),
+    .st_valid_1(st_valid_1),
+    .st_valid_2(st_valid_2),
     .dst_1(dst_1_rn),
     .dst_2(dst_2_rn),
     .phy_ori_dst_1(dst_ori_1_rn),
     .phy_ori_dst_2(dst_ori_2_rn),
     .stall_DP(stall_DP),
-    .rob_idx_1(rob_idx_1),
-    .rob_idx_1(rob_idx_2),
-    .rob_sorting_bit_1(rob_sorting_bit_1),
-    .rob_sorting_bit_2(rob_sorting_bit_2),
+    .rob_num_1(rob_num_1),
+    .rob_num_1(rob_num_2),
+    .sorting_bit_1(sorting_bit_1),
+    .sorting_bit_2(sorting_bit_2),
     .wrap_around(wrap_around),
     .allocatable(allocatable_rob),
     .prmiss(prmiss),
@@ -779,13 +859,12 @@ module pipeline (
     .violation_rob_idx()
     );
 
-    // TODO: complete port assignment
     // check operands status and set how long latency takes for dst
     scoreboard scd (
     .clk(clk),
     .reset(reset),
-    .invalid1(inv1_rn),
-    .invalid2(inv2_rn),
+    .valid_1(~inv1_rn),
+    .valid_2(~inv2_rn),
     .src1_1(src1_1_rn),
     .src2_1(src2_1_rn),
     .src1_2(src1_2_rn),
@@ -808,10 +887,12 @@ module pipeline (
     .wr_reg_2(wr_reg_2_rn),
     .inst_type_1(rs_ent_1_rn),
     .inst_type_2(rs_ent_2_rn),
-    .bc_valid_1(),    // from issue queue
-    .bc_valid_2(),
-    .bc_dst_1(sel_dst_1),
-    .bc_dst_2(sel_dst_2)
+    .broadcast_enable1(broadcast_enable1),
+    .broadcast_enable2(broadcast_enable2),
+    .broadcast_enable3(broadcast_enable3),
+    .broadcast_tag1(broadcast_tag1),
+    .broadcast_tag2(broadcast_tag2),
+    .broadcast_tag3(broadcast_tag3)
     );
 
     // ignore source tag states when insts don't use register source operands
@@ -824,120 +905,165 @@ module pipeline (
     assign delay1_2_use = uses_rs1_2_rn ? delay1_2 : {{`MAX_LATENCY{1'b1}}};
     assign delay2_2_use = uses_rs2_2_rn ? delay2_2 : {{`MAX_LATENCY{1'b1}}};
 
-    // TODO: complete port assignment
+
     freelist #(`IB_ENT_NUM, `IB_ENT_SEL)
     ib_freelist (
     .clk(clk),
     .reset(reset),
-    .invalid1(imm_valid_1),
-    .invalid2(imm_valid_2),
+    .valid_1(imm_valid_1),
+    .valid_2(imm_valid_2),
     .prmiss(prmiss),
-    .released_1(issued_imm_1),
-    .released_2(issued_imm_2),
-    .released_valid_1(issued_imm_valid_1),
-    .released_valid_2(issued_imm_valid_2),
     .stall(stall_DP),
-    .alloc_1(ib_free_ent_1),
-    .alloc_2(ib_free_ent_2),
-    .alloc_valid_1(ib_free_valid_1),
-    .alloc_valid_2(ib_free_valid_2),
-    .allocatable(allocatable_ib)
+    .alloc_1(imm_ptr_1),
+    .alloc_2(imm_ptr_2),
+    .alloc_valid_1(imm_ptr_valid_1),
+    .alloc_valid_2(imm_ptr_valid_2),
+    .allocatable(allocatable_ib),
+    .released_1(sel_imm_ptr_1),
+    .released_2(sel_imm_ptr_2),
+    .released_3(sel_imm_ptr_3),
+    .released_valid_1(sel_imm_valid_1),
+    .released_valid_2(sel_imm_valid_2),
+    .released_valid_2(sel_imm_valid_3)
     );
 
-    // TODO: complete port assignment
-    // store immediate value 
+    // store immediate values
     value_buffer #(`IB_ENT_NUM, `IB_ENT_SEL, `DATA_LEN)
     immediate_buffer (
     .clk(clk),
     .reset(reset),
-    .invalid1(ib_free_valid_1),
-    .invalid2(ib_free_valid_2),
-    .ptr_1(ib_free_ent_1),
-    .ptr_2(ib_free_ent_2),
+    .valid_1(imm_ptr_valid_1),
+    .valid_2(imm_ptr_valid_2),
+    .ptr_1(imm_ptr_1),
+    .ptr_2(imm_ptr_2),
     .value_1(imm_1_rn),
     .value_2(imm_2_rn),
     .prmiss(prmiss),
-    .issued_1(),        // if selected instruction is immediate?
-    .issued_2(),
-    .issued_ptr_1(issued_imm_1),    // imm buffer ptr from select logic
-    .issued_ptr_2(issued_imm_2),
-    .issued_value_1(issued_imm_value_1),
-    .issued_value_1(issued_imm_value_1)
+    .stall(stall_DP),
+    .sel_ptr_1(sel_imm_ptr_1),
+    .sel_ptr_2(sel_imm_ptr_2),
+    .sel_ptr_2(sel_imm_ptr_3),
+    .sel_value_1(sel_imm_value_1),
+    .sel_value_1(sel_imm_value_2),
+    .sel_value_1(sel_imm_value_3)
     );
 
-    // TODO: complete port assignment
     freelist #(`PB_ENT_NUM, `PB_ENT_SEL)
     pb_freelist (
     .clk(clk),
     .reset(reset),
-    .invalid1(pc_valid_1),
-    .invalid2(pc_valid_2),
+    .valid_1(pc_valid_1),
+    .valid_2(pc_valid_2),
     .prmiss(prmiss),
-    .released_1(issued_pc_1),
-    .released_2(issued_pc_2),
-    .released_valid_1(issued_pc_valid_1),
-    .released_valid_2(issued_pc_valid_2),
     .stall(stall_DP),
-    .alloc_1(pb_free_ent_1),
-    .alloc_2(pb_free_ent_2),
-    .alloc_valid_1(pb_free_valid_1),
-    .alloc_valid_2(pb_free_valid_2),
-    .allocatable(allocatable_pb)
+    .alloc_1(pc_ptr_1),
+    .alloc_2(pc_ptr_2),
+    .alloc_valid_1(pc_ptr_valid_1),
+    .alloc_valid_2(pc_ptr_valid_2),
+    .allocatable(allocatable_pb),
+    .released_1({`PB_ENT_SEL{1'b0}}),
+    .released_2(sel_pc_ptr_2),
+    .released_3(sel_pc_ptr_3),
+    .released_valid_1(0),
+    .released_valid_2(sel_pc_valid_2),
+    .released_valid_3(sel_pc_valid_3)
     );
 
-    // TODO: complete port assignment
-    // store pc value
+    // store pc values
     value_buffer #(`PB_ENT_NUM, `PB_ENT_SEL, `ADDR_LEN)
     pc_buffer (
     .clk(clk),
     .reset(reset),
-    .invalid1(pb_free_valid_1),
-    .invalid2(pb_free_valid_2),
-    .ptr_1(pb_free_ent_1),
-    .ptr_2(pb_free_ent_2),
+    .valid_1(pc_ptr_valid_1),
+    .valid_2(pc_ptr_valid_2),
+    .ptr_1(pc_ptr_1),
+    .ptr_2(pc_ptr_2),
     .value_1(pc_rn),
     .value_2(pc_rn+4),
-    .prmiss(prmiss),
-    .issued_1(),        // if selected instruction is immediate?
-    .issued_2(),
-    .issued_ptr_1(issued_pc_1),    // pc buffer ptr from select logic
-    .issued_ptr_2(issued_pc_2),
-    .issued_value_1(issued_pc_value_1),
-    .issued_value_1(issued_pc_value_1)
+    .stall(stall_DP),
+    .sel_ptr_1({`PB_ENT_SEL{1'b0}}),
+    .sel_ptr_2(sel_pc_ptr_2),
+    .sel_ptr_3(sel_pc_ptr_3),
+    .sel_value_1({`ADDR_LEN{1'b0}}),
+    .sel_value_2(sel_pc_value_2),
+    .sel_value_3(sel_pc_value_3)
     );
 
-    // TODO: complete port assignment
+    freelist #(`PAB_ENT_NUM, `PAB_ENT_SEL)
+    pab_freelist (
+    .clk(clk),
+    .reset(reset),
+    .valid_1(pra_valid_1),
+    .valid_2(pra_valid_2),
+    .prmiss(prmiss),
+    .stall(stall_DP),
+    .alloc_1(pra_ptr_1),
+    .alloc_2(pra_ptr_2),
+    .alloc_valid_1(pra_ptr_valid_1),
+    .alloc_valid_2(pra_ptr_valid_2),
+    .allocatable(allocatable_pab),
+    .released_1({`PAB_ENT_SEL{1'b0}}),
+    .released_2(sel_pra_ptr_2),
+    .released_3({`PAB_ENT_SEL{1'b0}}),
+    .released_valid_1(0),
+    .released_valid_2(sel_pra_valid_2),
+    .released_valid_3(0)
+    );
+
+    // store predicted address values
+    value_buffer #(`PAB_ENT_NUM, `PAB_ENT_SEL, `ADDR_LEN)
+    pa_buffer (
+    .clk(clk),
+    .reset(reset),
+    .valid_1(pra_ptr_valid_1),
+    .valid_2(pra_ptr_valid_2),
+    .ptr_1(pra_ptr_1),
+    .ptr_2(pra_ptr_2),
+    .value_1(praddr1_rn),
+    .value_2(praddr2_rn),
+    .stall(stall_DP),
+    .sel_ptr_1({`PAB_ENT_SEL{1'b0}}),
+    .sel_ptr_2(sel_pra_ptr_2),
+    .sel_ptr_3({`PAB_ENT_SEL{1'b0}}),
+    .sel_value_1({`ADDR_LEN{1'b0}}),
+    .sel_value_2(sel_pra_value_2),
+    .sel_value_3({`ADDR_LEN{1'b0}})
+    );
+
     // issue queue allocation
 	freelist #(`IQ_ENT_NUM, `IQ_ENT_SEL)
 	iq_freelist (
     .clk(clk),
     .reset(reset),
-    .invalid1(inv1_rn),
-    .invalid2(inv2_rn),
+    .valid_1(~inv1_rn),
+    .valid_2(~inv2_rn),
     .prmiss(prmiss),
-    .released_1(issued_1),
-    .released_2(issued_2),
-    .released_valid_1(issued_valid_1),
-    .released_valid_2(issued_valid_2),
     .stall(stall_DP),
-    .alloc_1(iq_free_ent_1),
-    .alloc_2(iq_free_ent_2),
-    .alloc_valid_1(iq_free_valid_1),
-    .alloc_valid_2(iq_free_valid_2),
-    .allocatable(allocatable_iq)
+    .alloc_1(iq_ptr_1),
+    .alloc_2(iq_ptr_2),
+    .alloc_valid_1(iq_ent_valid_1),
+    .alloc_valid_2(iq_ent_valid_2),
+    .allocatable(allocatable_iq),
+    .released_1(sel_ent_1),
+    .released_2(sel_ent_2),
+    .released_2(sel_ent_3),
+    .released_valid_1(sel_grant_1),
+    .released_valid_2(sel_grant_2),
+    .released_valid_3(sel_grant_3)
     );
 
-    // TODO: predicted address buffer instantiation
-    // TODO: complete port assignment
+    // TODO: complete port allocation
     issue_queue issue_logic (
     .clk(clk),
     .reset(reset),
-    .invalid1(iq_free_valid_1),
-    .invalid2(iq_free_valid_2),
-    .iq_entry_num_1(iq_free_ent_1),
-    .iq_entry_num_2(iq_free_ent_2),
+    .valid_1(iq_ent_valid_1),
+    .valid_2(iq_ent_valid_2),
+    .iq_entry_num_1(iq_ptr_1),
+    .iq_entry_num_2(iq_ptr_2),
     .port_num_1(),      // from dispatch
     .port_num_2(),
+    .wr_reg_1(wr_reg_1_rn),
+    .wr_reg_2(wr_reg_2_rn),
     .src_a_sel_1(src_a_sel_1_rn),
     .src_b_sel_1(src_b_sel_1_rn),
     .src_a_sel_2(src_a_sel_2_rn),
@@ -964,32 +1090,88 @@ module pipeline (
     .delay2_2(delay2_2_use),
     .dst_1(dst_1_rn),
     .dst_2(dst_2_rn),
-    .imm_ptr_1(ib_free_ent_1),
-    .imm_ptr_2(ib_free_ent_2),
-    .pc_ptr_1(pb_free_ent_1),
-    .pc_ptr_2(pb_free_ent_2),
+    .imm_valid_1(imm_valid_1),
+    .imm_valid_2(imm_valid_2),
+    .imm_ptr_1(imm_ptr_1),
+    .imm_ptr_2(imm_ptr_2),
+    .pc_valid_1(pc_valid_1),
+    .pc_valid_2(pc_valid_2),
+    .pc_ptr_1(pc_ptr_1),
+    .pc_ptr_2(pc_ptr_2),
+    .pra_valid_1(pra_valid_1),
+    .pra_valid_2(pra_valid_2),
+    .pra_ptr_1(pra_ptr_1),
+    .pra_ptr_2(pra_ptr_2),
     .stall_DP(stall_DP),
-    .lq_idx_1(lq_idx_1),        // from load queue
+    .lq_idx_1(lq_idx_1),
     .lq_idx_2(lq_idx_2),
-    .st_idx_1(sq_idx_1),        // from store queue
+    .st_idx_1(sq_idx_1),
     .st_idx_2(sq_idx_2),
-    .rob_num_1(rob_idx_1),      // from rob
-    .rob_num_2(rob_idx_2),
-    .rob_sorting_bit_1(rob_sorting_bit_1),
-    .rob_sorting_bit_2(rob_sorting_bit_2),
+    .rob_num_1(rob_num_1),
+    .rob_num_2(rob_num_2),
+    .sorting_bit_1(sorting_bit_1),
+    .sorting_bit_2(sorting_bit_2),
     .wrap_around(wrap_around),
-    .prmiss_rob_num(),          // from execution
+    .prmiss_rob_num(),          // from execution stage
     .prmiss_rob_sorting_bit(),
     .prmiss(prmiss),
-    .sel_src1_1(sel_src1_1),    // to register file
+    // output
+    .broadcast_enable1(broadcast_enable1),
+    .broadcast_enable2(broadcast_enable2),
+    .broadcast_enable3(broadcast_enable3),
+    .broadcast_tag1(broadcast_tag1),
+    .broadcast_tag2(broadcast_tag2),
+    .broadcast_tag3(broadcast_tag3),
+    .sel_grant_1(sel_grant_1),
+    .sel_ent_1(sel_ent_1),
+    .sel_src1_1(sel_src1_1),
     .sel_src2_1(sel_src2_1),
+    .sel_dst_1(sel_dst_1),
+    .sel_wr_reg_1(sel_wr_reg_1),
+    .sel_alu_op_1(sel_alu_op_1),
+    .sel_sorting_bit_1(sel_sorting_bit_1),
+    .sel_rob_num_1(sel_rob_num_1),
+    .sel_inst_type_1(sel_inst_type_1),
+    .sel_imm_valid_1(sel_imm_valid_1),
+    .sel_imm_ptr_1(sel_imm_ptr_1),
+    .sel_src_a_sel_1(sel_src_a_sel_1),
+    .sel_src_b_sel_1(sel_src_b_sel_1),
+    .sel_grant_2(sel_grant_2),
+    .sel_ent_2(sel_ent_2),
     .sel_src1_2(sel_src1_2),
     .sel_src2_2(sel_src2_2),
-    .sel_dst_1(sel_dst_1),
     .sel_dst_2(sel_dst_2),
-    .sel_alu_op_1(sel_alu_op_1),
+    .sel_wr_reg_2(sel_wr_reg_2),
     .sel_alu_op_2(sel_alu_op_2),
-    .allocatable_FU()           // necessary?
+    .sel_sorting_bit_2(sel_sorting_bit_2),
+    .sel_rob_num_2(sel_rob_num_2),
+    .sel_inst_type_2(sel_inst_type_2),
+    .sel_imm_valid_2(sel_imm_valid_2),
+    .sel_imm_ptr_2(sel_imm_ptr_2),
+    .sel_pc_valid_2(sel_pc_valid_2),
+    .sel_pc_ptr_2(sel_pc_ptr_2),
+    .sel_pra_valid_2(sel_pra_valid_2),
+    .sel_pra_ptr_2(sel_pra_ptr_2),
+    .sel_src_a_sel_2(sel_src_a_sel_2),
+    .sel_src_b_sel_2(sel_src_b_sel_2),
+    .sel_grant_3(sel_grant_3),
+    .sel_ent_3(sel_ent_3),
+    .sel_src1_3(sel_src1_3),
+    .sel_src2_3(sel_src2_3),
+    .sel_dst_3(sel_dst_3),
+    .sel_wr_reg_3(sel_wr_reg_3),
+    .sel_alu_op_3(sel_alu_op_3),
+    .sel_sorting_bit_3(sel_sorting_bit_3),
+    .sel_rob_num_3(sel_rob_num_3),
+    .sel_iq_idx_3(sel_iq_idx_3),
+    .sel_sq_idx_3(sel_sq_idx_3),
+    .sel_inst_type_3(sel_inst_type_3),
+    .sel_imm_valid_3(sel_imm_valid_3),
+    .sel_imm_ptr_3(sel_imm_ptr_3),
+    .sel_pc_valid_3(sel_pc_valid_3),
+    .sel_pc_ptr_3(sel_pc_ptr_3),
+    .sel_src_a_sel_3(sel_src_a_sel_3),
+    .sel_src_b_sel_3(sel_src_b_sel_3)
     );
 
 endmodule

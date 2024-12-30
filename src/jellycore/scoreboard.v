@@ -6,8 +6,8 @@ module scoreboard(
     input wire                      clk,
     input wire                      reset,
     // dispatch
-    input wire                      invalid1,
-    input wire                      invalid2,
+    input wire                      valid_1,
+    input wire                      valid_2,
     input wire [`PHY_REG_SEL-1:0]   src1_1,
     input wire [`PHY_REG_SEL-1:0]   src2_1,
     input wire [`PHY_REG_SEL-1:0]   src1_2,
@@ -102,7 +102,7 @@ module scoreboard(
     always @ (negedge clk) begin
         // Dispatch
         // update the scoreboard according to the instruction type (latency)
-        if (~invalid1 && wr_reg_1) begin
+        if (valid_1 && wr_reg_1) begin
             match[dst_1] <= 0;
             case(inst_type_1)
                 `RS_ENT_ALU :       delay[dst_1] <= {`MAX_LATENCY{1'b1}};
@@ -112,7 +112,7 @@ module scoreboard(
                 default :           delay[dst_1] <= {`MAX_LATENCY{1'b0}};
             endcase
         end
-        if (~invalid2 && wr_reg_2) begin
+        if (valid_2 && wr_reg_2) begin
             match[dst_2] <= 0;
             case(inst_type_2)
                 `RS_ENT_ALU :       delay[dst_2] <= {`MAX_LATENCY{1'b1}};

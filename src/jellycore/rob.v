@@ -5,21 +5,21 @@ module reorder_buffer (
     input wire                      clk,
     input wire                      reset,
     // dispatch
-    input wire                      invalid1,
-    input wire                      invalid2,
-    input wire                      ld_valid1,
-    input wire                      ld_valid2,
-    input wire                      st_valid1,
-    input wire                      st_valid2,
+    input wire                      valid_1,
+    input wire                      valid_2,
+    input wire                      ld_valid_1,
+    input wire                      ld_valid_2,
+    input wire                      st_valid_1,
+    input wire                      st_valid_2,
     input wire [`REG_SEL-1:0]       dst_1,
     input wire [`REG_SEL-1:0]       dst_2,
     input wire [`PHY_REG_SEL-1:0]   phy_ori_dst_1,
     input wire [`PHY_REG_SEL-1:0]   phy_ori_dst_2,
     input wire                      stall_DP,
-    output wire [`ROB_SEL-1:0]      rob_idx_1,
-    output wire [`ROB_SEL-1:0]      rob_idx_2,
-    output wire                     rob_sorting_bit_1,
-    output wire                     rob_sorting_bit_2,
+    output wire [`ROB_SEL-1:0]      rob_num_1,
+    output wire [`ROB_SEL-1:0]      rob_num_2,
+    output wire                     sorting_bit_1,
+    output wire                     sorting_bit_2,
     output wire                     wrap_around,
     output wire                     allocatable,
     input wire                      prmiss,                 // Branch Misprediction
@@ -30,8 +30,8 @@ module reorder_buffer (
     // sent from write back stage, setting corresponding inst in rob entry complete
 
     // commit
-    output wire                     commit_valid1,
-    output wire                     commit_valid2,
+    output wire                     commit_valid_1,
+    output wire                     commit_valid_2,
     output wire                     commit_is_load_1,
     output wire                     commit_is_load_2,
     output wire                     commit_is_store_1,
@@ -60,7 +60,7 @@ module reorder_buffer (
     wire [1:0] comnum;
 
     // the number of reqested instructions
-    assign reqnum = (~invalid1 && ~invalid2) ? 2'b10 : ((~invalid1) ? 2'b01 : 2'b00);
+    assign reqnum = (valid_1 && valid_2) ? 2'b10 : ((valid_1) ? 2'b01 : 2'b00);
     // the number of committed instructions
     assign comnum = (commit_enable_1 && commit_enable_2) ? 2'b10 : ((commit_enable_1) ? 2'b01 : 2'b00);
     assign allocatable = ((count - comnum + reqnum) <= `ROB_NUM) ? 1'b1 : 1'b0;
@@ -71,14 +71,14 @@ module reorder_buffer (
     wire wrap_2;
     wire [`ROB_SEL-1:0] next_tail;
 
-    assign wrap_1 = (tail == 0) && ~invalid1;
-    assign wrap_2 = (tail == 1) && ~invalid1 && ~invalid2;
+    assign wrap_1 = (tail == 0) && valid_1;
+    assign wrap_2 = (tail == 1) && valid_1 && valid_2;
     
-    assign rob_idx_1 = wrap_1 ? (`ROB_NUM - 1) : (tail - 1);
-    assign rob_idx_2 = wrap_1 ? (`ROB_NUM - 2) : (wrap_2 ? (`ROB_NUM - 1) : (tail - 2));
+    assign rob_num_1 = wrap_1 ? (`ROB_NUM - 1) : (tail - 1);
+    assign rob_num_2 = wrap_1 ? (`ROB_NUM - 2) : (wrap_2 ? (`ROB_NUM - 1) : (tail - 2));
 
-    assign rob_sorting_bit_1 = wrap_2 ? 1'b1 : 1'b0;
-    assign rob_sorting_bit_2 = 1'b0;
+    assign sorting_bit_1 = wrap_2 ? 1'b1 : 1'b0;
+    assign sorting_bit_2 = 1'b0;
 
     assign wrap_around = wrap_1 | wrap_2;
     assign next_tail = wrap_around ? (`ROB_NUM - reqnum) : tail - reqnum;
@@ -112,18 +112,18 @@ module reorder_buffer (
                      : head);
 
     // addressing when a committed entry is allocated at the very next cycle
-    assign overlap_1 = ~stall_DP && (((reqnum == 2'b10) && ((rob_idx_1 == commit_idx_1) || (rob_idx_2 == commit_idx_1)))
-                    || ((reqnum == 2'b01) && (rob_idx_1 == commit_idx_1)));
-    assign overlap_2 = ~stall_DP && ((reqnum == 2'b10) && (rob_idx_2 == commit_idx_2));
+    assign overlap_1 = ~stall_DP && (((reqnum == 2'b10) && ((rob_num_1 == commit_idx_1) || (rob_num_2 == commit_idx_1)))
+                    || ((reqnum == 2'b01) && (rob_num_1 == commit_idx_1)));
+    assign overlap_2 = ~stall_DP && ((reqnum == 2'b10) && (rob_num_2 == commit_idx_2));
 
     // commit output
-    assign commit_valid1 = commit_enable_1;
+    assign commit_valid_1 = commit_enable_1;
     assign commit_is_load_1 = is_load[commit_idx_1];
     assign commit_is_store_1 = is_store[commit_idx_1];
     assign commit_dst_1 = dst[commit_idx_1];
     assign commit_release_tag_1 = phy_ori_dst[commit_idx_1];
 
-    assign commit_valid2 = commit_enable_2;
+    assign commit_valid_2 = commit_enable_2;
     assign commit_is_load_2 = is_load[commit_idx_2];
     assign commit_is_store_2 = is_store[commit_idx_2];
     assign commit_dst_2 = dst[commit_idx_2];
@@ -150,20 +150,20 @@ module reorder_buffer (
             end else if (~stall_DP) begin
                 // Dispatch when allocatable
                 if (reqnum[0] ^ reqnum[1]) begin
-                    valid[rob_idx_1] <= 1;
-                    complete[rob_idx_1] <= 0;
-                    dst[rob_idx_1] <= dst_1;
-                    phy_ori_dst[rob_idx_1] <= phy_ori_dst_1;
-                    is_load[rob_idx_1] <= ld_valid1;
-                    is_store[rob_idx_1] <= st_valid1;
+                    valid[rob_num_1] <= 1;
+                    complete[rob_num_1] <= 0;
+                    dst[rob_num_1] <= dst_1;
+                    phy_ori_dst[rob_num_1] <= phy_ori_dst_1;
+                    is_load[rob_num_1] <= ld_valid_1;
+                    is_store[rob_num_1] <= st_valid_1;
                 end
                 if (reqnum == 2'b10) begin
-                    valid[rob_idx_2] <= 1;
-                    complete[rob_idx_2] <= 0;
-                    dst[rob_idx_2] <= dst_2;
-                    phy_ori_dst[rob_idx_2] <= phy_ori_dst_2;
-                    is_load[rob_idx_2] <= ld_valid2;
-                    is_store[rob_idx_2] <= st_valid2;
+                    valid[rob_num_2] <= 1;
+                    complete[rob_num_2] <= 0;
+                    dst[rob_num_2] <= dst_2;
+                    phy_ori_dst[rob_num_2] <= phy_ori_dst_2;
+                    is_load[rob_num_2] <= ld_valid_2;
+                    is_store[rob_num_2] <= st_valid_2;
                 end
                 tail <= next_tail;
                 count <= count - comnum + reqnum;
