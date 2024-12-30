@@ -244,8 +244,8 @@ module pipeline (
     wire                    st_valid_2;
 
     // signals from reorder buffer
-    wire [`ROB_SEL-1:0]     rob_num_1;
-    wire [`ROB_SEL-1:0]     rob_num_2;
+    wire [`ROB_SEL-1:0]     rob_idx_1;
+    wire [`ROB_SEL-1:0]     rob_idx_2;
     wire                    sorting_bit_1;
     wire                    sorting_bit_2;
     wire                    wrap_around;
@@ -331,7 +331,7 @@ module pipeline (
     wire                        sel_wr_reg_1;
     wire [`ALU_OP_WIDTH-1:0]    sel_alu_op_1;
     wire                        sel_sorting_bit_1;
-    wire [`ROB_SEL-1:0]         sel_rob_num_1;
+    wire [`ROB_SEL-1:0]         sel_rob_idx_1;
     wire [`RS_ENT_SEL-1:0]      sel_inst_type_1;
     wire [`IB_ENT_SEL-1:0]	    sel_imm_ptr_1;
     wire [`SRC_A_SEL_WIDTH-1:0] sel_src_a_sel_1;
@@ -346,7 +346,7 @@ module pipeline (
     wire                        sel_wr_reg_2;
     wire [`ALU_OP_WIDTH-1:0]    sel_alu_op_2;
     wire                        sel_sorting_bit_2;
-    wire [`ROB_SEL-1:0]         sel_rob_num_2;
+    wire [`ROB_SEL-1:0]         sel_rob_idx_2;
     wire [`RS_ENT_SEL-1:0]      sel_inst_type_2;
     wire [`IB_ENT_SEL-1:0]	    sel_imm_ptr_2;
     wire [`PB_ENT_SEL-1:0]      sel_pc_ptr_2;
@@ -847,8 +847,8 @@ module pipeline (
     .phy_ori_dst_1(dst_ori_1_rn),
     .phy_ori_dst_2(dst_ori_2_rn),
     .stall_DP(stall_DP),
-    .rob_num_1(rob_num_1),
-    .rob_num_1(rob_num_2),
+    .rob_idx_1(rob_idx_1),
+    .rob_idx_1(rob_idx_2),
     .sorting_bit_1(sorting_bit_1),
     .sorting_bit_2(sorting_bit_2),
     .wrap_around(wrap_around),
@@ -922,9 +922,9 @@ module pipeline (
     .released_1(sel_imm_ptr_1),
     .released_2(sel_imm_ptr_2),
     .released_3(sel_imm_ptr_3),
-    .released_valid_1(sel_imm_valid_1),
-    .released_valid_2(sel_imm_valid_2),
-    .released_valid_2(sel_imm_valid_3)
+    .released_valid_1(sel_grant_1 && sel_imm_valid_1),
+    .released_valid_2(sel_grant_2 && sel_imm_valid_2),
+    .released_valid_2(sel_grant_3 && sel_imm_valid_3)
     );
 
     // store immediate values
@@ -965,8 +965,8 @@ module pipeline (
     .released_2(sel_pc_ptr_2),
     .released_3(sel_pc_ptr_3),
     .released_valid_1(0),
-    .released_valid_2(sel_pc_valid_2),
-    .released_valid_3(sel_pc_valid_3)
+    .released_valid_2(sel_grant_2 && sel_pc_valid_2),
+    .released_valid_3(sel_grant_2 && sel_pc_valid_3)
     );
 
     // store pc values
@@ -1006,7 +1006,7 @@ module pipeline (
     .released_2(sel_pra_ptr_2),
     .released_3({`PAB_ENT_SEL{1'b0}}),
     .released_valid_1(0),
-    .released_valid_2(sel_pra_valid_2),
+    .released_valid_2(sel_grant_2 && sel_pra_valid_2),
     .released_valid_3(0)
     );
 
@@ -1107,8 +1107,8 @@ module pipeline (
     .lq_idx_2(lq_idx_2),
     .st_idx_1(sq_idx_1),
     .st_idx_2(sq_idx_2),
-    .rob_num_1(rob_num_1),
-    .rob_num_2(rob_num_2),
+    .rob_idx_1(rob_idx_1),
+    .rob_idx_2(rob_idx_2),
     .sorting_bit_1(sorting_bit_1),
     .sorting_bit_2(sorting_bit_2),
     .wrap_around(wrap_around),
@@ -1130,7 +1130,7 @@ module pipeline (
     .sel_wr_reg_1(sel_wr_reg_1),
     .sel_alu_op_1(sel_alu_op_1),
     .sel_sorting_bit_1(sel_sorting_bit_1),
-    .sel_rob_num_1(sel_rob_num_1),
+    .sel_rob_idx_1(sel_rob_idx_1),
     .sel_inst_type_1(sel_inst_type_1),
     .sel_imm_valid_1(sel_imm_valid_1),
     .sel_imm_ptr_1(sel_imm_ptr_1),
@@ -1144,7 +1144,7 @@ module pipeline (
     .sel_wr_reg_2(sel_wr_reg_2),
     .sel_alu_op_2(sel_alu_op_2),
     .sel_sorting_bit_2(sel_sorting_bit_2),
-    .sel_rob_num_2(sel_rob_num_2),
+    .sel_rob_idx_2(sel_rob_idx_2),
     .sel_inst_type_2(sel_inst_type_2),
     .sel_imm_valid_2(sel_imm_valid_2),
     .sel_imm_ptr_2(sel_imm_ptr_2),

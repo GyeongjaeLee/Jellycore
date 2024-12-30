@@ -16,8 +16,8 @@ module reorder_buffer (
     input wire [`PHY_REG_SEL-1:0]   phy_ori_dst_1,
     input wire [`PHY_REG_SEL-1:0]   phy_ori_dst_2,
     input wire                      stall_DP,
-    output wire [`ROB_SEL-1:0]      rob_num_1,
-    output wire [`ROB_SEL-1:0]      rob_num_2,
+    output wire [`ROB_SEL-1:0]      rob_idx_1,
+    output wire [`ROB_SEL-1:0]      rob_idx_2,
     output wire                     sorting_bit_1,
     output wire                     sorting_bit_2,
     output wire                     wrap_around,
@@ -74,8 +74,8 @@ module reorder_buffer (
     assign wrap_1 = (tail == 0) && valid_1;
     assign wrap_2 = (tail == 1) && valid_1 && valid_2;
     
-    assign rob_num_1 = wrap_1 ? (`ROB_NUM - 1) : (tail - 1);
-    assign rob_num_2 = wrap_1 ? (`ROB_NUM - 2) : (wrap_2 ? (`ROB_NUM - 1) : (tail - 2));
+    assign rob_idx_1 = wrap_1 ? (`ROB_NUM - 1) : (tail - 1);
+    assign rob_idx_2 = wrap_1 ? (`ROB_NUM - 2) : (wrap_2 ? (`ROB_NUM - 1) : (tail - 2));
 
     assign sorting_bit_1 = wrap_2 ? 1'b1 : 1'b0;
     assign sorting_bit_2 = 1'b0;
@@ -112,9 +112,9 @@ module reorder_buffer (
                      : head);
 
     // addressing when a committed entry is allocated at the very next cycle
-    assign overlap_1 = ~stall_DP && (((reqnum == 2'b10) && ((rob_num_1 == commit_idx_1) || (rob_num_2 == commit_idx_1)))
-                    || ((reqnum == 2'b01) && (rob_num_1 == commit_idx_1)));
-    assign overlap_2 = ~stall_DP && ((reqnum == 2'b10) && (rob_num_2 == commit_idx_2));
+    assign overlap_1 = ~stall_DP && (((reqnum == 2'b10) && ((rob_idx_1 == commit_idx_1) || (rob_idx_2 == commit_idx_1)))
+                    || ((reqnum == 2'b01) && (rob_idx_1 == commit_idx_1)));
+    assign overlap_2 = ~stall_DP && ((reqnum == 2'b10) && (rob_idx_2 == commit_idx_2));
 
     // commit output
     assign commit_valid_1 = commit_enable_1;
@@ -150,20 +150,20 @@ module reorder_buffer (
             end else if (~stall_DP) begin
                 // Dispatch when allocatable
                 if (reqnum[0] ^ reqnum[1]) begin
-                    valid[rob_num_1] <= 1;
-                    complete[rob_num_1] <= 0;
-                    dst[rob_num_1] <= dst_1;
-                    phy_ori_dst[rob_num_1] <= phy_ori_dst_1;
-                    is_load[rob_num_1] <= ld_valid_1;
-                    is_store[rob_num_1] <= st_valid_1;
+                    valid[rob_idx_1] <= 1;
+                    complete[rob_idx_1] <= 0;
+                    dst[rob_idx_1] <= dst_1;
+                    phy_ori_dst[rob_idx_1] <= phy_ori_dst_1;
+                    is_load[rob_idx_1] <= ld_valid_1;
+                    is_store[rob_idx_1] <= st_valid_1;
                 end
                 if (reqnum == 2'b10) begin
-                    valid[rob_num_2] <= 1;
-                    complete[rob_num_2] <= 0;
-                    dst[rob_num_2] <= dst_2;
-                    phy_ori_dst[rob_num_2] <= phy_ori_dst_2;
-                    is_load[rob_num_2] <= ld_valid_2;
-                    is_store[rob_num_2] <= st_valid_2;
+                    valid[rob_idx_2] <= 1;
+                    complete[rob_idx_2] <= 0;
+                    dst[rob_idx_2] <= dst_2;
+                    phy_ori_dst[rob_idx_2] <= phy_ori_dst_2;
+                    is_load[rob_idx_2] <= ld_valid_2;
+                    is_store[rob_idx_2] <= st_valid_2;
                 end
                 tail <= next_tail;
                 count <= count - comnum + reqnum;
