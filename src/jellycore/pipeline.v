@@ -860,11 +860,14 @@ module pipeline (
                      ^ ((~inv1_rn & isarithmetic_1)
                      | (~inv2_rn & isarithmetic_2));
     end
-
+    
+    // allocate corresponding port number
     assign port_num_1 = isldst_1 ? 2'b10 : 
-                       (isbranch_1 ? 2'b01 : {1'b0, load_balance});
+                       (isbranch_1 ? 2'b01 :
+                       (ismul_1 ? 2'b00 : {1'b0, load_balance}));
     assign port_num_2 = isldst_2 ? 2'b10 :
-                       (isbranch_2 ? 2'b01 : {1'b0, ~load_balance});
+                       (isbranch_2 ? 2'b01 :
+                       (ismul_2 ? 2'b00 : {1'b0, ~load_balance}));
 
     // whether the renamed instruction uses value buffers
     assign imm_valid_1 = ~inv1_rn && ((src_b_sel_1_rn == `SRC_B_IMM)
