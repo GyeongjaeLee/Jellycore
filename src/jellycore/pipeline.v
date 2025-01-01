@@ -390,6 +390,25 @@ module pipeline (
     wire                    sel_pra_valid_2;
     wire [`ADDR_LEN-1:0]    sel_pra_value_2;
 
+    // register source value read from the register file at Register Read stage
+    wire [`DATA_LEN-1:0]    regread_src1_1;
+    wire [`DATA_LEN-1:0]    regread_src2_1;
+    wire [`DATA_LEN-1:0]    regread_src1_2;
+    wire [`DATA_LEN-1:0]    regread_src2_2;
+    wire [`DATA_LEN-1:0]    regread_src1_3;
+    wire [`DATA_LEN-1:0]    regread_src2_3;
+
+    // execution result to write, their address, and write enable at WB stage
+    wire [`DATA_LEN-1:0]    wb_data_1;
+    wire [`DATA_LEN-1:0]    wb_data_2;
+    wire [`DATA_LEN-1:0]    wb_data_3;
+    wire [`PHY_REG_SEL-1:0] wb_dst_1;
+    wire [`PHY_REG_SEL-1:0] wb_dst_2;
+    wire [`PHY_REG_SEL-1:0] wb_dst_3;
+    wire                    wb_we_1;
+    wire                    wb_we_2;
+    wire                    wb_we_3;
+
 
     // IF Stage********************************************************
     // assign stall_IF = stall_ID;
@@ -1172,6 +1191,34 @@ module pipeline (
     .sel_pc_ptr_3(sel_pc_ptr_3),
     .sel_src_a_sel_3(sel_src_a_sel_3),
     .sel_src_b_sel_3(sel_src_b_sel_3)
+    );
+
+
+    // Register Read and Write-Back
+    register_file #(`PHY_REG_SEL, `DATA_LEN, `PHY_REG_NUM)
+    reg_file (
+    .clk(clk),
+    .raddr1(sel_src1_1),
+    .raddr2(sel_src2_1),
+    .raddr3(sel_src1_2),
+    .raddr4(sel_src2_2),
+    .raddr5(sel_src1_3),
+    .raddr6(sel_src2_3),
+    .rdata1(regread_src1_1),
+    .rdata2(regread_src2_1),
+    .rdata3(regread_src1_2),
+    .rdata4(regread_src2_2),
+    .rdata5(regread_src1_3),
+    .rdata6(regread_src2_3),
+    .waddr1(wb_dst_1),
+    .waddr2(wb_dst_2),
+    .waddr3(wb_dst_3),
+    .wdata1(wb_data_1),
+    .wdata2(wb_data_2),
+    .wdata3(wb_data_3),
+    .we1(wb_we_1),
+    .we2(wb_we_2),
+    .we3(wb_we_3)
     );
 
 endmodule
