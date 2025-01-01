@@ -50,7 +50,7 @@
 
 //Port Select
 `define PORT_SEL 2
-`define PORT_NUM 4
+`define PORT_NUM 3
 
 `define MAX_LATENCY 5
 

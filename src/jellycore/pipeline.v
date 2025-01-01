@@ -229,6 +229,22 @@ module pipeline (
 
 
 	// DISPATCH
+    // classify the type of the instruction
+    wire                    isarithmetic_1;
+    wire                    isarithmetic_2;
+    wire                    ismul_1;
+    wire                    ismul_2;
+    wire                    isbranch_1;
+    wire                    isbranch_2;
+    wire                    isldst_1;
+    wire                    isldst_2;
+
+    // allocate port number according to the instruction type
+    // and load on ALUs
+    reg                     load_balance;
+    wire [`PORT_SEL-1:0]    port_num_1;
+    wire [`PORT_SEL-1:0]    port_num_2;
+
     // whether the instruction requires value buffer
     wire                    imm_valid_1;
     wire                    imm_valid_2;
@@ -822,32 +838,49 @@ module pipeline (
 
 	end
 
-    // TODO: Edit the input/output port of the edited modules and add those newly implemented
 	// DP Stage*************************************************
 	assign stall_DP = ~allocatable_iq | ~allocatable_ib | ~allocatable_pb
                     | ~allocatable_pab | ~allocatable_rob | ~allocatable_lq
                     | ~allocatable_sq;
 	assign kill_DP = prmiss;
 
+    // classify the type of the instruction for proper resource allocation
+    assign isarithmetic_1 = rs_ent_1_rn == `RS_ENT_ALU;
+    assign ismul_1 = rs_ent_1_rn == `RS_ENT_MUL;
+    assign isbranch_1 = rs_ent_1_rn == `RS_ENT_BRANCH;
+    assign isldst_1 = rs_ent_1_rn == `RS_ENT_LDST;
+    assign isarithmetic_2 = rs_ent_2_rn == `RS_ENT_ALU;
+    assign ismul_2 = rs_ent_2_rn == `RS_ENT_MUL;
+    assign isbranch_2 = rs_ent_2_rn == `RS_ENT_BRANCH;
+    assign isldst_2 = rs_ent_2_rn == `RS_ENT_LDST;
+    
+    // allocate arithmetic instructions to port1 and port2 alternatively
+    always @ (negedge clk) begin
+        load_balance = load_balance 
+                     ^ ((~inv1_rn & isarithmetic_1)
+                     | (~inv2_rn & isarithmetic_2));
+    end
+
+    assign port_num_1 = isldst_1 ? 2'b10 : 
+                       (isbranch_1 ? 2'b01 : {1'b0, load_balance});
+    assign port_num_2 = isldst_2 ? 2'b10 :
+                       (isbranch_2 ? 2'b01 : {1'b0, ~load_balance});
+
     // whether the renamed instruction uses value buffers
     assign imm_valid_1 = ~inv1_rn && ((src_b_sel_1_rn == `SRC_B_IMM)
-                                 || (rs_ent_1_rn == `RS_ENT_BRANCH)
-                                 || (rs_ent_1_rn == `RS_ENT_LDST));
+                        || isbranch_1 || isldst_1);
     assign imm_valid_2 = ~inv2_rn && ((src_b_sel_2_rn == `SRC_B_IMM)
-                                 || (rs_ent_2_rn == `RS_ENT_BRANCH)
-                                 || (rs_ent_2_rn == `RS_ENT_LDST));
-    assign pc_valid_1 = ~inv1_rn && ((rs_ent_1_rn == `RS_ENT_BRANCH)
-                                 || (rs_ent_1_rn == `RS_ENT_LDST));
-    assign pc_valid_2 = ~inv2_rn && ((rs_ent_2_rn == `RS_ENT_BRANCH)
-                                 || (rs_ent_2_rn == `RS_ENT_LDST));
-    assign pra_valid_1 = ~inv1_rn && (rs_ent_1_rn == `RS_ENT_BRANCH);
-    assign pra_valid_2 = ~inv2_rn && (rs_ent_2_rn == `RS_ENT_BRANCH);
+                        || isbranch_2 || isldst_2);
+    assign pc_valid_1 = ~inv1_rn && (isbranch_1 || isldst_1);
+    assign pc_valid_2 = ~inv2_rn && (isbranch_2 || isldst_2);
+    assign pra_valid_1 = ~inv1_rn && isbranch_1;
+    assign pra_valid_2 = ~inv2_rn && isbranch_2;
 
     // whether the renamed instruction is load/store
-    assign ld_valid_1 = ~inv1_rn && ((rs_ent_1_rn == `RS_ENT_LDST) && wr_reg_1_rn);
-    assign ld_valid_2 = ~inv2_rn && ((rs_ent_2_rn == `RS_ENT_LDST) && wr_reg_2_rn);
-    assign st_valid_1 = ~inv1_rn && ((rs_ent_1_rn == `RS_ENT_LDST) && uses_rs2_1_rn);
-    assign st_valid_2 = ~inv2_rn && ((rs_ent_2_rn == `RS_ENT_LDST) && uses_rs2_2_rn);
+    assign ld_valid_1 = ~inv1_rn && (isldst_1 && wr_reg_1_rn);
+    assign ld_valid_2 = ~inv2_rn && (isldst_2 && wr_reg_2_rn);
+    assign st_valid_1 = ~inv1_rn && (isldst_1 && uses_rs2_1_rn);
+    assign st_valid_2 = ~inv2_rn && (isldst_2 && uses_rs2_2_rn);
 
 	// Dispatch Instatnces
     // TODO: complete execution write-back
@@ -1071,7 +1104,6 @@ module pipeline (
     .released_valid_3(sel_grant_3)
     );
 
-    // TODO: complete port allocation
     issue_queue issue_logic (
     .clk(clk),
     .reset(reset),
@@ -1079,8 +1111,8 @@ module pipeline (
     .valid_2(iq_ent_valid_2),
     .iq_entry_num_1(iq_ptr_1),
     .iq_entry_num_2(iq_ptr_2),
-    .port_num_1(),      // from dispatch
-    .port_num_2(),
+    .port_num_1(port_num_1),
+    .port_num_2(port_num_2),
     .wr_reg_1(wr_reg_1_rn),
     .wr_reg_2(wr_reg_2_rn),
     .src_a_sel_1(src_a_sel_1_rn),
@@ -1194,7 +1226,7 @@ module pipeline (
     );
 
 
-    // Register Read and Write-Back
+    // Register Read (6 read port) and Write-Back (3 write port)
     register_file #(`PHY_REG_SEL, `DATA_LEN, `PHY_REG_NUM)
     reg_file (
     .clk(clk),
@@ -1220,6 +1252,8 @@ module pipeline (
     .we2(wb_we_2),
     .we3(wb_we_3)
     );
+
+    // TODO: Instantiate function units and bypass logic
 
 endmodule
 
