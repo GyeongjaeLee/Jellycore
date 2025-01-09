@@ -1256,7 +1256,6 @@ module pipeline (
     .we3(wb_we_3)
     );
 
-    // TODO: Instantiate function units and bypass logic
-
+    // TODO: Instantiate functional units and bypass logic
+    
 endmodule
-
